@@ -44,6 +44,12 @@ jobs:
       # dist-tag, never "latest", whatever the GitHub release's prerelease checkbox says.
       - name: Publish
         run: |
+          # A version already on npm (like a first release the owner published by hand) is done.
+          NAME_VERSION="$(node -p "const p = require('./package.json'); p.name + '@' + p.version")"
+          if npm view "$NAME_VERSION" version > /dev/null 2>&1; then
+            echo "$NAME_VERSION is already on npm; nothing to publish."
+            exit 0
+          fi
           if node -p "require('./package.json').version" | grep -q -- -; then
             npm publish --provenance --access public --tag next
           else
