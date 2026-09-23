@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: check · typecheck · test · build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Biome
+        run: bun run check
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Test
+        run: bun run test:coverage
+
+      # After a build, so the dry run lists what would really ship.
+      - name: Pack (dry run)
+        run: bun run build && npm pack --dry-run
+
+  dist:
+    name: dist on Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # The engines floor and the current LTS.
+        node: ["22.12", "24"]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Build and smoke-test dist
+        run: bun run test:dist
+
+  consumer:
+    name: consumer with zod ${{ matrix.zod }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # The peer range's floor (checked: 4.0.15 and older break the .d.ts) and the newest.
+        zod: ["4.0.16", "latest"]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck and run a consumer
+        run: bun run check:consumer ${{ matrix.zod }}

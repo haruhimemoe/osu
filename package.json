@@ -1,0 +1,72 @@
+{
+  "name": "@haruhimemoe/osu",
+  "version": "0.1.0",
+  "description": "osu! API v2 for the haruhime.moe tools: beatmap, beatmapset and user shapes with zod schemas (browser-safe at /shapes), and a server client with token caching, a rate-budget hook, beatmaps, beatmapsets and star ratings with mods.",
+  "keywords": [
+    "osu",
+    "osu!",
+    "osu-api",
+    "api-client",
+    "beatmap",
+    "star-rating"
+  ],
+  "homepage": "https://github.com/haruhimemoe/osu#readme",
+  "bugs": "https://github.com/haruhimemoe/osu/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/haruhimemoe/osu.git"
+  },
+  "license": "MIT",
+  "author": "David (https://dvh.sh)",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./shapes": {
+      "types": "./dist/shapes/index.d.ts",
+      "default": "./dist/shapes/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "CHANGELOG.md"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22.12"
+  },
+  "packageManager": "bun@1.4.2",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build": "bun run clean && tsc -p tsconfig.build.json",
+    "check": "biome check .",
+    "check:fix": "biome check --write .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest",
+    "test:dist": "bun run build && node scripts/smoke.mjs",
+    "prepublishOnly": "bun run check && bun run typecheck && bun run test && bun run test:dist",
+    "check:consumer": "bun run build && node scripts/check-consumer.mjs"
+  },
+  "peerDependencies": {
+    "zod": "^4.0.16"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.14",
+    "@types/node": "26.6.2",
+    "@vitest/coverage-v8": "5.0.1",
+    "msw": "2.15.0",
+    "typescript": "7.0.2",
+    "vitest": "5.0.1",
+    "zod": "4.6.5"
+  }
+}

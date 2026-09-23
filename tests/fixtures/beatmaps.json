@@ -1,0 +1,47 @@
+{
+  "beatmaps": [
+    {
+      "beatmapset_id": 1,
+      "difficulty_rating": 2.55,
+      "id": 75,
+      "mode": "osu",
+      "status": "ranked",
+      "total_length": 142,
+      "user_id": 2,
+      "version": "Normal",
+      "accuracy": 6,
+      "ar": 6,
+      "bpm": 119.999,
+      "convert": false,
+      "count_circles": 160,
+      "count_sliders": 30,
+      "count_spinners": 3,
+      "cs": 4,
+      "deleted_at": null,
+      "drain": 6,
+      "hit_length": 109,
+      "is_scoreable": true,
+      "last_updated": "2014-05-18T17:16:26Z",
+      "mode_int": 0,
+      "passcount": 0,
+      "playcount": 0,
+      "ranked": 1,
+      "url": "https://osu.ppy.sh/beatmaps/75",
+      "checksum": "a5b99395a42bd55bc5eb1d2411cbdf8b",
+      "beatmapset": {
+        "artist": "Kenji Ninuma",
+        "artist_unicode": "Kenji Ninuma",
+        "availability": { "download_disabled": false, "more_information": null },
+        "creator": "peppy",
+        "id": 1,
+        "source": "",
+        "status": "ranked",
+        "tags": "katamari",
+        "title": "DISCOPRINCE",
+        "title_unicode": "DISCOPRINCE",
+        "track_id": null,
+        "user_id": 2
+      }
+    }
+  ]
+}

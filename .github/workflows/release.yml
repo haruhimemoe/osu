@@ -1,0 +1,52 @@
+name: Release
+
+# Publishes to npm when a GitHub release is published. Uses npm trusted publishing (OIDC), so no
+# token is stored: on npmjs.com, add this repo, release.yml and the environment "npm" as a trusted
+# publisher first.
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: npm
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          registry-url: https://registry.npmjs.org
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      # Trusted publishing needs npm 11.5.1 or later.
+      - name: npm
+        run: npm install -g npm@^11.5.1
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Tag matches package.json
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: test "v$(node -p "require('./package.json').version")" = "$TAG"
+
+      # A GitHub prerelease publishes under the "next" dist-tag, never "latest".
+      - name: Publish
+        env:
+          PRERELEASE: ${{ github.event.release.prerelease }}
+        run: |
+          if [ "$PRERELEASE" = "true" ]; then
+            npm publish --provenance --access public --tag next
+          else
+            npm publish --provenance --access public
+          fi
