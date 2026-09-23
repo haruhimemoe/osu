@@ -29,8 +29,8 @@ const client = createOsuClient({
       : Response.json({ beatmaps: fixture.beatmaps });
   },
 });
-const beatmaps = await client.getBeatmaps([75]);
-assert.equal(beatmaps[0]?.title, "DISCOPRINCE");
+const { found } = await client.getBeatmaps([75]);
+assert.equal(found.get(75)?.title, "DISCOPRINCE");
 assert.deepEqual(seen, ["POST /oauth/token smoke", "GET /api/v2/beatmaps smoke"]);
 assert.equal("createOsuClient" in shapes, false, "/shapes has no client");
 assert.equal(shapes.coverUrl(1), "https://assets.ppy.sh/beatmaps/1/covers/card.jpg");

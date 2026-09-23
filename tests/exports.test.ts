@@ -19,6 +19,7 @@ it("exports the documented runtime API", () => {
       "OSU_BEATMAPS_BATCH_LIMIT",
       "OSU_OAUTH",
       "OSU_SIGN_IN_SCOPES",
+      "OSU_TIMEOUT_MS",
       "OsuApiError",
       "RULESETS",
       "beatmapMetaSchema",
@@ -48,6 +49,7 @@ it("keeps the client out of /shapes", () => {
   ).toEqual([
     "BEATMAPSET_FALLBACK_LIMIT",
     "OSU_BEATMAPS_BATCH_LIMIT",
+    "OSU_TIMEOUT_MS",
     "OsuApiError",
     "createOsuClient",
   ]);

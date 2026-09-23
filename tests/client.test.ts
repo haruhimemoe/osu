@@ -60,8 +60,10 @@ const credentials = () => ({ clientId: "1", clientSecret: "shh-secret" });
 describe("createOsuClient", () => {
   it("maps rows for the ids it asked for", async () => {
     const client = createOsuClient({ userAgent: SERVER_USER_AGENT, credentials });
-    const beatmaps = await client.getBeatmaps([75, 999]);
-    expect(beatmaps.map((b) => [b.beatmapId, b.title])).toEqual([[75, "DISCOPRINCE"]]);
+    const { found, missing, unchecked } = await client.getBeatmaps([75, 999]);
+    expect([...found.values()].map((b) => [b.beatmapId, b.title])).toEqual([[75, "DISCOPRINCE"]]);
+    expect(missing).toEqual([999]);
+    expect(unchecked).toEqual([]);
     expect(beatmapRequests[0]?.searchParams.getAll("ids[]")).toEqual(["75", "999"]);
   });
 
@@ -100,7 +102,7 @@ describe("createOsuClient", () => {
       }),
     );
     const client = createOsuClient({ userAgent: SERVER_USER_AGENT, credentials });
-    expect(await client.getBeatmaps([75])).toHaveLength(1);
+    expect((await client.getBeatmaps([75])).found.size).toBe(1);
   });
 
   it("asks for at most 50 ids per request", async () => {
@@ -246,7 +248,7 @@ describe("getStarRating", () => {
 
 describe("getBeatmapsets", () => {
   const recorded = fixture.beatmaps[0] as (typeof fixture.beatmaps)[number];
-  /** A second difficulty of the recorded set, and a compact row (no availability/track_id/tags). */
+  /** A second difficulty of the recorded set, and a compact row (no availability, track_id or tags). */
   const sibling = { ...recorded, id: 76 };
   const { availability: _a, track_id: _t, tags: _g, ...compactSet } = recorded.beatmapset;
   const compact = { ...recorded, id: 80, beatmapset_id: 5, beatmapset: { ...compactSet, id: 5 } };
@@ -275,7 +277,7 @@ describe("getBeatmapsets", () => {
       }),
     );
 
-  it("maps each known id to its set's facts, one set for sibling difficulties", async () => {
+  it("maps each known id to its extended set, one set for sibling difficulties", async () => {
     serve([recorded, sibling]);
     const { sets: facts, unchecked } = await createOsuClient({
       userAgent: SERVER_USER_AGENT,
@@ -288,7 +290,7 @@ describe("getBeatmapsets", () => {
     expect(setRequests).toEqual([]);
   });
 
-  it("asks /beatmapsets/{id} once for a set sent without the check's fields", async () => {
+  it("asks /beatmapsets/{id} once for a set sent compact", async () => {
     serve([compact, { ...compact, id: 81 }]);
     const { sets: facts } = await createOsuClient({
       userAgent: SERVER_USER_AGENT,

@@ -38,7 +38,7 @@ describe("createOsuClient options", () => {
       userAgent: UA,
       credentials: { clientId: "1", clientSecret: "s" },
     });
-    expect(await client.getBeatmaps([75])).toHaveLength(1);
+    expect((await client.getBeatmaps([75])).found.size).toBe(1);
   });
 
   it("reads credentials lazily, on the first request", async () => {
