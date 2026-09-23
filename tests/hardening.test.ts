@@ -1,8 +1,10 @@
 /**
  * @file tests/hardening.test.ts
- * @desc Failure handling beyond packs' client: every failure is an OsuApiError (unreadable bodies,
- *       network errors, timeouts), getBeatmaps honors beforeCall, bad inputs are refused or
- *       skipped, one token request serves concurrent calls, and only one 401 is retried.
+ * @desc Failure handling beyond packs' client: every failure talking to osu! is an OsuApiError with
+ *       a code (unreadable bodies, network errors, timeouts, HTTP errors with Retry-After, a
+ *       refused budget), getBeatmaps and getStarRating honor beforeCall, rows that fail the
+ *       schema are unchecked, bad inputs are refused or skipped, one token request serves
+ *       concurrent calls, and only one 401 is retried.
  * @author David @dvhsh (https://dvh.sh)
  * @created Wed Sep 23, 2026
  * @modified Wed Sep 23, 2026
@@ -18,16 +20,22 @@ const TOKEN = () => Response.json({ access_token: "t", expires_in: 86400 });
 // A client whose fetch answers from `route`, recording every call.
 const stub = (
   route: (url: string, init?: RequestInit) => Response | Promise<Response>,
-  options: { timeoutMs?: number; baseUrl?: string } = {},
+  options: {
+    timeoutMs?: number;
+    baseUrl?: string;
+    credentials?: () => { clientId: string; clientSecret: string };
+    token?: () => Response;
+  } = {},
 ) => {
   const calls: Call[] = [];
+  const { token = TOKEN, ...rest } = options;
   const client = createOsuClient({
     userAgent: "tests",
     credentials: { clientId: "1", clientSecret: "s" },
-    ...options,
+    ...rest,
     fetch: async (input, init) => {
       calls.push({ url: String(input), init });
-      return String(input).endsWith("/oauth/token") ? TOKEN() : route(String(input), init);
+      return String(input).endsWith("/oauth/token") ? token() : route(String(input), init);
     },
   });
   return { client, calls };
@@ -43,13 +51,15 @@ describe("every failure is an OsuApiError", () => {
     const { client } = stub(() => new Response("<html>cloudflare</html>"));
     const error = await failure(client.getBeatmaps([75]));
     expect(error).toBeInstanceOf(OsuApiError);
-    expect(error).toMatchObject({ status: 200 });
+    expect(error).toMatchObject({ status: 200, code: "bad_response", retryAfterMs: null });
     expect((error as Error).cause).toBeInstanceOf(SyntaxError);
   });
 
   it("wraps a /beatmaps body of the wrong shape", async () => {
     const { client } = stub(() => Response.json({ nope: true }));
-    expect(await failure(client.getBeatmapsets([75]))).toBeInstanceOf(OsuApiError);
+    const error = await failure(client.getBeatmapsets([75]));
+    expect(error).toBeInstanceOf(OsuApiError);
+    expect(error).toMatchObject({ status: 200, code: "bad_response" });
   });
 
   it("wraps a token body it can't read", async () => {
@@ -72,7 +82,7 @@ describe("every failure is an OsuApiError", () => {
     });
     const error = await failure(client.getBeatmaps([75]));
     expect(error).toBeInstanceOf(OsuApiError);
-    expect(error).toMatchObject({ status: null });
+    expect(error).toMatchObject({ status: null, code: "network" });
   });
 
   it("gives up on a request that takes longer than timeoutMs", async () => {
@@ -85,7 +95,167 @@ describe("every failure is an OsuApiError", () => {
     );
     const error = await failure(client.getBeatmaps([75]));
     expect(error).toBeInstanceOf(OsuApiError);
+    expect(error).toMatchObject({ status: null, code: "timeout" });
     expect((error as Error).message).toContain("in time");
+  });
+
+  it("reports a timeout while the body is read as a timeout", async () => {
+    const { client } = stub(
+      () =>
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.error(new DOMException("The operation timed out.", "TimeoutError"));
+            },
+          }),
+        ),
+    );
+    const error = await failure(client.getBeatmaps([75]));
+    expect(error).toBeInstanceOf(OsuApiError);
+    expect(error).toMatchObject({ status: 200, code: "timeout" });
+  });
+
+  it("gives an HTTP error its code, and no Retry-After when osu! sent none", async () => {
+    const { client } = stub(() => new Response(null, { status: 500 }));
+    expect(await failure(client.getBeatmaps([75]))).toMatchObject({
+      status: 500,
+      code: "http_error",
+      retryAfterMs: null,
+    });
+  });
+
+  it.each([
+    [429, "5", 5000],
+    [503, "120", 60_000],
+    [429, "soon", null],
+    [500, "5", null],
+  ])("reads a %i's Retry-After %j as %j ms", async (status, header, retryAfterMs) => {
+    const { client } = stub(
+      () => new Response(null, { status, headers: { "Retry-After": header } }),
+    );
+    expect(await failure(client.getBeatmaps([75]))).toMatchObject({
+      status,
+      code: "http_error",
+      retryAfterMs,
+    });
+  });
+
+  it("reads Retry-After as an HTTP date", async () => {
+    const at = new Date(Date.now() + 30_000).toUTCString();
+    const { client } = stub(
+      () => new Response(null, { status: 429, headers: { "Retry-After": at } }),
+    );
+    const error = (await failure(client.getBeatmaps([75]))) as OsuApiError;
+    expect(error.retryAfterMs).toBeGreaterThan(20_000);
+    expect(error.retryAfterMs).toBeLessThanOrEqual(30_000);
+  });
+
+  it("reads the token request's Retry-After too", async () => {
+    const { client } = stub(() => Response.json({ beatmaps: [] }), {
+      token: () => new Response(null, { status: 429, headers: { "Retry-After": "7" } }),
+    });
+    expect(await failure(client.getBeatmaps([75]))).toMatchObject({
+      status: 429,
+      code: "http_error",
+      retryAfterMs: 7000,
+    });
+  });
+});
+
+describe("callbacks", () => {
+  it("lets a throwing beforeCall's error through as is", async () => {
+    const thrown = new Error("budget store down");
+    const { client } = stub(() => Response.json({ beatmaps: [] }));
+    const beforeCall = async () => {
+      throw thrown;
+    };
+    await expect(client.getBeatmaps([75], { beforeCall })).rejects.toBe(thrown);
+    await expect(client.getBeatmapsets([75], { beforeCall })).rejects.toBe(thrown);
+    await expect(client.getStarRating(75, ["HD"], { beforeCall })).rejects.toBe(thrown);
+  });
+
+  it("never files a credentials problem during a fallback under unchecked", async () => {
+    const recorded = fixture.beatmaps[0] as (typeof fixture.beatmaps)[number];
+    const { availability: _a, ...compactSet } = recorded.beatmapset;
+    let reads = 0;
+    const { client } = stub(
+      (url) =>
+        url.includes("/beatmapsets/")
+          ? new Response(null, { status: 401 })
+          : Response.json({
+              beatmaps: [
+                { ...recorded, id: 80, beatmapset_id: 5, beatmapset: { ...compactSet, id: 5 } },
+              ],
+            }),
+      { credentials: () => ({ clientId: "1", clientSecret: ++reads === 1 ? "s" : "" }) },
+    );
+    await expect(client.getBeatmapsets([80])).rejects.toBeInstanceOf(TypeError);
+  });
+});
+
+describe("getStarRating budget", () => {
+  it("rejects with code budget, and sends nothing, when beforeCall refuses", async () => {
+    const { client, calls } = stub(() => Response.json({ attributes: { star_rating: 5 } }));
+    const error = await failure(
+      client.getStarRating(75, ["HD"], { beforeCall: async () => false }),
+    );
+    expect(error).toBeInstanceOf(OsuApiError);
+    expect(error).toMatchObject({ code: "budget", status: null });
+    expect(calls).toEqual([]);
+  });
+
+  it("asks beforeCall once, then calls osu!", async () => {
+    let asks = 0;
+    const { client } = stub(() => Response.json({ attributes: { star_rating: 5 } }));
+    const stars = await client.getStarRating(75, ["HD"], { beforeCall: async () => ++asks > 0 });
+    expect(stars).toBe(5);
+    expect(asks).toBe(1);
+  });
+});
+
+describe("rows that fail the schema", () => {
+  const recorded = fixture.beatmaps[0] as (typeof fixture.beatmaps)[number];
+  // A title must be a string, so this row is osu!'s but unreadable to both row schemas.
+  const broken = { ...recorded, id: 76, beatmapset: { ...recorded.beatmapset, title: 5 } };
+
+  it("puts a broken row's id in getBeatmaps' unchecked, not missing", async () => {
+    const { client } = stub(() => Response.json({ beatmaps: [recorded, broken] }));
+    const { found, missing, unchecked } = await client.getBeatmaps([75, 76, 77]);
+    expect([...found.keys()]).toEqual([75]);
+    expect(missing).toEqual([77]);
+    expect(unchecked).toEqual([76]);
+  });
+
+  it("puts every unanswered id of a batch in unchecked when a row has no readable id", async () => {
+    const { client } = stub(() => Response.json({ beatmaps: [recorded, { nope: true }] }));
+    const { found, missing, unchecked } = await client.getBeatmaps([75, 76, 77, -1]);
+    expect([...found.keys()]).toEqual([75]);
+    expect(missing).toEqual([-1]);
+    expect(unchecked).toEqual([76, 77]);
+  });
+
+  it("ignores rows, good or broken, for ids it didn't ask for", async () => {
+    const { client } = stub(() =>
+      Response.json({ beatmaps: [recorded, { ...recorded, id: 9 }, { ...broken, id: 10 }] }),
+    );
+    const { found, missing, unchecked } = await client.getBeatmaps([75, 77]);
+    expect([...found.keys()]).toEqual([75]);
+    expect(missing).toEqual([77]);
+    expect(unchecked).toEqual([]);
+  });
+
+  it("puts a broken row's id in getBeatmapsets' unchecked", async () => {
+    const { client } = stub(() => Response.json({ beatmaps: [recorded, broken] }));
+    const { sets, unchecked } = await client.getBeatmapsets([75, 76, 77]);
+    expect([...sets.keys()]).toEqual([75]);
+    expect(unchecked).toEqual([76]);
+  });
+
+  it("puts a getBeatmapsets batch's unanswered ids in unchecked when a row has no id", async () => {
+    const { client } = stub(() => Response.json({ beatmaps: [recorded, "nope"] }));
+    const { sets, unchecked } = await client.getBeatmapsets([75, 76, 77]);
+    expect([...sets.keys()]).toEqual([75]);
+    expect(unchecked).toEqual([76, 77]);
   });
 });
 

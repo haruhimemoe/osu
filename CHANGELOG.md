@@ -6,11 +6,8 @@ All notable changes to `@haruhimemoe/osu`.
 
 - First release, extracted from packs.haruhime.moe's osu! client and schemas.
 - `/shapes`: `BeatmapMeta` and osu!'s beatmap row with `toBeatmapMeta`; beatmapset content fields with `isExtendedBeatmapset`; `toOsuUser`; links and sign-in endpoints; `Ruleset`.
-- `createOsuClient({ credentials, userAgent, baseUrl?, fetch?, now? })` with `getBeatmaps`, `getBeatmapsets` and `getStarRating`.
-- Every failure is an `OsuApiError` (unreadable bodies, network failures and timeouts included), each request gives up after `timeoutMs` (default 10 s), and bad arguments throw `RangeError` before anything is sent.
-- Changes from packs' client:
-  - `userAgent` is required and credentials are passed in; the client reads no env.
-  - `getBeatmapsetFacts` is `getBeatmapsets`: it returns osu!'s extended sets, not compliance facts (use `@haruhimemoe/compliance`), and takes `fallbackLimit`.
-  - `getStarRating` takes any mod acronyms.
-  - `getBeatmaps` returns `{ found, missing, unchecked }` instead of an array, and takes `beforeCall`.
-  - The user mapping returns `{ osuId, username, avatarUrl, countryCode }`; the synthetic email packs gives better-auth stays in packs.
+- `createOsuClient({ credentials, userAgent, baseUrl?, timeoutMs?, fetch?, now? })` with `getBeatmaps`, `getBeatmapsets` and `getStarRating`. The README lists every export.
+- Every failure talking to osu! is an `OsuApiError` with a `code` (`timeout`, `network`, `bad_response`, `http_error`, `budget`), the HTTP `status` and, on a 429 or 503, `retryAfterMs`. Bad arguments throw `RangeError` and bad credentials `TypeError` before anything is sent.
+- `baseUrl` must be https (or http on localhost), since it receives the client secret.
+- All three methods take a `beforeCall` budget; rows osu! sends that fail the schema are `unchecked`, not `missing`.
+- Compared with packs' client: the client reads no env, `getBeatmapsets` returns osu!'s extended sets instead of compliance facts, and `getBeatmaps` returns `{ found, missing, unchecked }`.

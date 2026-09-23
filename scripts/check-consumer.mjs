@@ -53,7 +53,7 @@ try {
   writeFileSync(
     path.join(dir, "consumer.ts"),
     `import { z } from "zod";
-import { createOsuClient, type OsuClient } from "@haruhimemoe/osu";
+import { createOsuClient, OsuApiError, type OsuApiErrorCode, type OsuClient } from "@haruhimemoe/osu";
 import { type BeatmapMeta, beatmapMetaSchema, isExtendedBeatmapset, osuBeatmapsetSchema, type Ruleset, toBeatmapMeta, osuBeatmapRowSchema, toOsuUser } from "@haruhimemoe/osu/shapes";
 
 const row = { id: 75, beatmapset_id: 1, mode: "osu", version: "Normal", difficulty_rating: 2.55, cs: 4, ar: 6, accuracy: 6, drain: 6, bpm: 120, total_length: 142, checksum: null, beatmapset: { artist: "a", title: "t", creator: "c", user_id: 2 } };
@@ -65,7 +65,8 @@ const set = osuBeatmapsetSchema.parse({ id: 1, status: "ranked", artist: "a", ti
 if (!isExtendedBeatmapset(set)) throw new Error("extended set not recognized");
 if (toOsuUser({ id: 2, username: "peppy" }).osuId !== 2) throw new Error("user");
 const client: OsuClient = createOsuClient({ userAgent: "consumer-check", credentials: { clientId: "1", clientSecret: "s" } });
-void client; void inferred; void bad;
+const code: OsuApiErrorCode = new OsuApiError("http_error", "x", { status: 429, retryAfterMs: 1000 }).code;
+void client; void inferred; void bad; void code;
 console.log("consumer: ok");
 `,
   );
