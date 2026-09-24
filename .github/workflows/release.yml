@@ -1,8 +1,7 @@
 name: Release
 
-# Publishes to npm when a GitHub release is published. Uses npm trusted publishing (OIDC), so no
-# token is stored: on npmjs.com, add this repo, release.yml and the environment "npm" as a trusted
-# publisher first.
+# Publishes to npm when a GitHub release is published, using npm trusted publishing (OIDC), so no
+# token is stored in this repo.
 
 on:
   release:
@@ -44,7 +43,7 @@ jobs:
       # dist-tag, never "latest", whatever the GitHub release's prerelease checkbox says.
       - name: Publish
         run: |
-          # A version already on npm (like a first release the owner published by hand) is done.
+          # A version already on npm is done.
           NAME_VERSION="$(node -p "const p = require('./package.json'); p.name + '@' + p.version")"
           if npm view "$NAME_VERSION" version > /dev/null 2>&1; then
             echo "$NAME_VERSION is already on npm; nothing to publish."

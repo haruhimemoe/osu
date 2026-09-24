@@ -102,18 +102,18 @@ import { coverUrl, isExtendedBeatmapset, toOsuUser, type BeatmapMeta } from "@ha
 | `OSU_OAUTH`, `OSU_SIGN_IN_SCOPES`, `OSU_BASE_URL` | Sign-in endpoints (authorize, token, `/me`) and scopes (`identify public`). |
 | `coverUrl`, `CoverSize`, `beatmapUrl`, `beatmapsetUrl`, `userUrl` | osu! pages and cover art on assets.ppy.sh. |
 
+## Compatibility
+
+- **Node** 22.12 or later (needs native `fetch` and `AbortSignal.timeout`). CI runs the dist build on 22.12 (the floor) and the current LTS.
+- **Bun** works the same way; developed and tested against bun 1.4.2+.
+- **Browsers and edge runtimes:** only `@haruhimemoe/osu/shapes` is safe there, no I/O, no secrets, no Node built-ins. Keep `createOsuClient` server-side, since it holds your client secret.
+- **`zod`** is a peer dependency, `^4.0.16` (any 4.x from there up). CI checks a consumer against 4.0.16 and the newest 4.x release.
+- Your TypeScript config needs the `DOM` lib or `@types/node`, since the client's types use `fetch`'s `Response` and `RequestInit`.
+
 ## License
 
 MIT. See [LICENSE](LICENSE). Not affiliated with osu! or ppy Pty Ltd. Using the osu! API means following its terms: https://osu.ppy.sh/docs#terms-of-use
 
-## Develop
+## Contributing
 
-```sh
-bun install
-bun run check && bun run typecheck && bun run test && bun run test:dist
-bun run check:consumer 4.0.16   # needs the npm registry
-```
-
-### Releasing
-
-npm only lets you add a trusted publisher to a package that already exists, so the first release is manual. The owner publishes 0.1.0 from a clean checkout of the tagged commit: `bun run build`, every check above passing, then `npm publish --access public --provenance=false`. Next, configure the trusted publisher (needs npm 11.15.0 or later and 2FA): `npm trust github @haruhimemoe/osu --file release.yml --repo haruhimemoe/osu --env npm --allow-publish`. Every later release goes through `release.yml`: publish a GitHub release whose tag is `v` plus the `package.json` version. A version with a prerelease part (`0.2.0-rc.1`) goes to the `next` dist-tag, anything else to `latest`.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for dev setup and how to submit a change, and [CHANGELOG.md](CHANGELOG.md) for release history.
