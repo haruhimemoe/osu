@@ -1,8 +1,8 @@
 # @haruhimemoe/osu
 
-> osu! API v2 for TypeScript, in two entry points. `@haruhimemoe/osu/shapes` is browser-safe: zod schemas and types for a difficulty (`BeatmapMeta` and osu!'s `/api/v2/beatmaps` row), a beatmapset's content fields (`OsuBeatmapsetExtended`), and the signed-in user (`toOsuUser`), plus osu! page and cover URLs and the sign-in endpoints. `@haruhimemoe/osu` adds `createOsuClient` for servers: a cached client-credentials token, a required User-Agent, per-request timeouts, a `beforeCall` hook for a shared rate budget, and `getBeatmaps`, `getBeatmapsets` and `getStarRating`. Every failure talking to osu! is an `OsuApiError` with a `code`. ESM only, Node 22.12 or later, zod ^4.0.16 as a peer dependency, MIT.
+> osu! API v2 for TypeScript, in three entry points. `@haruhimemoe/osu/shapes` is browser-safe: zod schemas and types for a difficulty (`BeatmapMeta` and osu!'s `/api/v2/beatmaps` row), a beatmapset's content fields (`OsuBeatmapsetExtended`), and the signed-in user (`toOsuUser`), plus osu! page and cover URLs and the sign-in endpoints. `@haruhimemoe/osu/collections` is browser-safe and loads no zod: `readCollectionDb` and `writeCollectionDb` for osu!stable's `collection.db` (Uint8Array in and out, byte-for-byte round trips, a `CollectionDbError` with a `code` and byte offset), plus `addToCollection`, `mergeCollections`, `collectionHashesFor` and `lazerImportFiles` for adding maps to collections in stable, or in lazer through its setup-wizard import. `@haruhimemoe/osu` re-exports both and adds `createOsuClient` for servers: a cached client-credentials token, a required User-Agent, per-request timeouts, a `beforeCall` hook for a shared rate budget, and `getBeatmaps`, `getBeatmapsets` and `getStarRating`. Every failure talking to osu! is an `OsuApiError` with a `code`. ESM only, Node 22.12 or later, zod ^4.0.16 as a peer dependency, MIT.
 
-Keep `createOsuClient` on a server: it holds the OAuth client secret. Browser code imports only `@haruhimemoe/osu/shapes`.
+Keep `createOsuClient` on a server: it holds the OAuth client secret. Browser code imports only `@haruhimemoe/osu/shapes` and `@haruhimemoe/osu/collections`.
 
 ## Docs
 
@@ -14,6 +14,9 @@ Keep `createOsuClient` on a server: it holds the OAuth client secret. Browser co
 - [Staying under osu!'s rate limit](https://github.com/haruhimemoe/osu#staying-under-osus-rate-limit): a `beforeCall` budget shared by every instance.
 - [Client exports](https://github.com/haruhimemoe/osu#client-exports): the root entry point's exports.
 - [Shapes](https://github.com/haruhimemoe/osu#shapes): the `/shapes` exports and every `BeatmapMeta` field.
+- [Collections](https://github.com/haruhimemoe/osu#collections): what `collection.db` holds, a read, add and write example for stable and lazer, and the steps users follow to put the result back.
+- [Collection functions](https://github.com/haruhimemoe/osu#functions): each function's options, rules and errors.
+- [Collection errors and warnings](https://github.com/haruhimemoe/osu#errors-and-warnings): `CollectionDbError` codes and the reader's warnings.
 - [Compatibility](https://github.com/haruhimemoe/osu#compatibility): Node, Bun, browsers, zod, and the TypeScript lib and `moduleResolution` settings.
 
 ## Source
@@ -23,6 +26,10 @@ Keep `createOsuClient` on a server: it holds the OAuth client secret. Browser co
 - [src/shapes/beatmapset.ts](https://github.com/haruhimemoe/osu/blob/main/src/shapes/beatmapset.ts): beatmapset content fields and `isExtendedBeatmapset`.
 - [src/shapes/user.ts](https://github.com/haruhimemoe/osu/blob/main/src/shapes/user.ts): the `/api/v2/me` schema and `toOsuUser`.
 - [src/shapes/links.ts](https://github.com/haruhimemoe/osu/blob/main/src/shapes/links.ts): `OSU_BASE_URL`, `OSU_OAUTH`, `OSU_SIGN_IN_SCOPES`, `coverUrl`, `beatmapUrl`, `beatmapsetUrl`, `userUrl`.
+- [src/collections/read.ts](https://github.com/haruhimemoe/osu/blob/main/src/collections/read.ts): `readCollectionDb` and its warning codes.
+- [src/collections/write.ts](https://github.com/haruhimemoe/osu/blob/main/src/collections/write.ts): `writeCollectionDb`.
+- [src/collections/edit.ts](https://github.com/haruhimemoe/osu/blob/main/src/collections/edit.ts): `createCollectionDb`, `normalizeHash`, `collectionHashesFor`, `addToCollection`, `mergeCollections`, `lazerImportFiles`.
+- [src/collections/model.ts](https://github.com/haruhimemoe/osu/blob/main/src/collections/model.ts) and [errors.ts](https://github.com/haruhimemoe/osu/blob/main/src/collections/errors.ts): `CollectionDb`, the limits, and `CollectionDbError`.
 
 ## Package
 

@@ -1,8 +1,9 @@
 # @haruhimemoe/osu
 
-osu! API v2 for the haruhime.moe tools (packs, pools, sheets), in two parts:
+osu! API v2 for the haruhime.moe tools (packs, pools, sheets), in three parts:
 
 - **`@haruhimemoe/osu/shapes`**: the data. Zod schemas and types for a difficulty (`BeatmapMeta` and osu!'s beatmap row), a beatmapset's content fields, and the signed-in user, plus osu! links and the sign-in endpoints. No client code, so it's safe in browsers and in other packages that read osu!-shaped data, like mirrors.
+- **`@haruhimemoe/osu/collections`**: reads and writes osu!stable's `collection.db`, so a web page can add maps to a player's collections: stable takes the edited file back, and lazer imports it through its setup wizard. Safe in browsers, and it doesn't load zod.
 - **`@haruhimemoe/osu`**: everything above, plus `createOsuClient` for servers. It caches the client-credentials token, sends your User-Agent, and has a hook for a shared rate budget. It fetches beatmaps, beatmapsets and star ratings with mods.
 
 ## Install
@@ -140,7 +141,7 @@ await osu.getStarRating(129891, ["HD"], { beforeCall });
 | `OsuApiError`, `OsuApiErrorCode` | The error, and its `code` values. `new OsuApiError(code, message, { status, retryAfterMs, cause })` builds one, for tests. |
 | `OSU_BEATMAPS_BATCH_LIMIT`, `BEATMAPSET_FALLBACK_LIMIT`, `OSU_TIMEOUT_MS` | 50 ids per `/beatmaps` call, the default `fallbackLimit` (10), the default `timeoutMs` (10,000). |
 
-The root entry point also re-exports everything in `/shapes`.
+The root entry point also re-exports everything in `/shapes` and `/collections`.
 
 ## Shapes
 
@@ -202,13 +203,161 @@ export const signedIn = async (accessToken: string) => {
 | `starRating` | number | `difficulty_rating` (no mods) |
 | `checksum` | string or null | `checksum`, kept only when it's an md5 (32 lowercase hex characters) |
 
+## Collections
+
+`@haruhimemoe/osu/collections` reads, edits and writes osu!stable's `collection.db`. It takes and returns `Uint8Array`, does no I/O, and imports nothing from the rest of this package (not even zod), so it runs in browsers. Read the file the user picks right in the page: it never has to reach your server.
+
+### What's in collection.db
+
+osu!stable keeps `collection.db` in its install folder, next to `osu!.db`. On Windows that's `%LOCALAPPDATA%\osu!` unless the user installed it somewhere else, so ask for the file rather than guessing a path. The file holds a version number and a list of collections. A collection is a name and a list of difficulty MD5 hashes. That's all: no beatmap ids, no titles.
+
+- The hash is the MD5 of the difficulty's `.osu` file, in lowercase hex. osu!'s API calls it `checksum`, and `BeatmapMeta.checksum` carries it.
+- Collections are per difficulty. To add a beatmapset, add the hash of every difficulty in it.
+- Hashes for maps the user doesn't have stay in the file. osu! hides them until a matching `.osu` gets imported, then shows them. Adding a map to a collection before downloading it works fine.
+- Updating a map changes its hash. The API's `checksum` is always the newest version, so if you hand out the `.osu` files yourself, the MD5 of the bytes you hand out is the surer hash. Adding both does no harm: a hash that matches nothing just stays hidden.
+
+### Read, add, write
+
+```ts
+import {
+  addToCollection,
+  collectionHashesFor,
+  createCollectionDb,
+  lazerImportFiles,
+  readCollectionDb,
+  writeCollectionDb,
+} from "@haruhimemoe/osu/collections";
+import type { BeatmapMeta } from "@haruhimemoe/osu/shapes";
+
+// osu!stable: edit the whole collection.db the user picked, and hand it back.
+export const addToStable = async (file: File, maps: BeatmapMeta[], name: string) => {
+  const read = readCollectionDb(new Uint8Array(await file.arrayBuffer()));
+  const { hashes, withoutChecksum } = collectionHashesFor(maps);
+  const { db, added, alreadyPresent, created, similarName } = addToCollection(read, name, hashes);
+  return {
+    // Show this before the user saves: "12 added, 3 already there, 2 have no checksum".
+    preview: { added, alreadyPresent, created, similarName, noChecksum: withoutChecksum.length },
+    file: new Blob([writeCollectionDb(db)]), // save it as collection.db
+  };
+};
+
+// osu!lazer: only the additions. Lazer merges them into the collection with the same name.
+export const addToLazer = (maps: BeatmapMeta[], name: string) => {
+  const delta = addToCollection(createCollectionDb(), name, collectionHashesFor(maps).hashes).db;
+  return lazerImportFiles(delta); // collection.db and osu!.import.cfg: zip both at the root
+};
+```
+
+Parsing is synchronous. For a big file, call `readCollectionDb` from a Web Worker.
+
+### Giving it back to osu!stable
+
+`writeCollectionDb` writes the whole file, every collection and hash from the upload included (hashes for maps nobody has, too). Tell the user to:
+
+1. Close osu!. Stable reads `collection.db` once at startup and writes its own copy back later, so a file swapped while it runs gets ignored and then overwritten.
+2. Keep a copy of the old `collection.db`.
+3. Put the new file in the osu! folder, named exactly `collection.db`. Browsers save a second download as `collection (1).db`.
+4. Start osu!.
+
+### Getting collections into osu!lazer
+
+Lazer keeps collections inside its own database, which a browser can't read or write, and it can't export them. The one way in from outside is the setup wizard's import from a previous osu! install. It accepts any folder that looks like a stable install, and it merges the `collection.db` it finds there by exact collection name: new hashes go into the collection with that name, other names become new collections, and nothing gets removed. So the file only needs the additions.
+
+`lazerImportFiles(db)` returns `collection.db` and an empty `osu!.import.cfg`. The empty cfg is what makes the folder pass lazer's check. Zip both at the root of the archive, not inside a folder: extracting a zip already makes a folder named after it. Give the zip a name with no dots apart from `.zip`, because lazer ignores a dropped folder with a dot in its name.
+
+Your page can't see the user's lazer collections, so they have to type the collection's name exactly. Case counts, and a typo creates a new collection. Then they:
+
+1. Extract the zip.
+2. In osu!(lazer), open Settings, then General, then "Run setup wizard", and click Next until the Import step.
+3. Choose the extracted folder as the previous osu! install, or drag the folder onto the osu! window. If osu!stable is installed, the field already points at it: change it.
+4. Untick Beatmaps, Scores and Skins. Check that Collections shows the count they expect, and click Import.
+5. Wait for "Imported N collections". Maps they don't have yet count in Manage Collections and show up in song select once they download them.
+
+This works on desktop only. Lazer on Android and iOS can't import collections.
+
+### Functions
+
+**`readCollectionDb(bytes, { maxBytes, lenient })`** returns `{ version, collections, warnings }`, with the collections, names and hashes in file order, exactly as found. Anything odd it keeps (or drops) is listed in `warnings` (below).
+
+- `bytes` must be a `Uint8Array` (a Node `Buffer` is one), else `TypeError`.
+- `maxBytes` (default `MAX_COLLECTION_DB_BYTES`, 64 MiB): bigger input throws `too_large` before anything is read. A value that isn't a positive safe integer throws `RangeError`.
+- `lenient` (default `false`): read the way lazer does. An unknown string marker, invalid UTF-8 and bytes after the last collection become warnings instead of errors. Invalid UTF-8 is replaced with U+FFFD, which changes that name's bytes when you write it back, and in lazer a changed name is a different collection.
+- Any other problem in the file throws a `CollectionDbError`: a file that ends early, a count that doesn't fit in the bytes left, a bad string length or marker. It never returns part of a file.
+
+**`writeCollectionDb(db, { maxBytes })`** returns the file as a `Uint8Array<ArrayBuffer>`, ready for `new Blob([bytes])`. It writes the database exactly as given: it doesn't lowercase, deduplicate or reorder anything, and it keeps the version (no osu! client reads it). A file stable wrote comes back byte for byte after a read and a write. It throws `invalid_version`, `invalid_name` or `invalid_hash` (a name or hash that isn't a string, or that holds a lone UTF-16 surrogate, which UTF-8 can't encode), then `too_large` when the output would pass `maxBytes` (default 64 MiB). A `db` that isn't shaped like one throws `TypeError`, and a bad `maxBytes` throws `RangeError`.
+
+**`createCollectionDb(version?)`** returns an empty database. The version defaults to `DEFAULT_COLLECTION_DB_VERSION` (20150203). A version that isn't an integer from -2^31 to 2^31 - 1 throws `invalid_version`.
+
+**`normalizeHash(value)`** returns the hash in lowercase when it's exactly 32 hex characters in any case, else null. It never trims. Lazer matches hashes exactly, so an uppercase hash would never match anything.
+
+**`collectionHashesFor(beatmaps)`** takes anything with a `checksum` (`BeatmapMeta`, osu!'s beatmap rows, your own objects) and returns `{ hashes, withoutChecksum }`: the normalized hashes, deduplicated in input order, and the items whose checksum is null, missing or malformed.
+
+**`addToCollection(db, name, hashes)`** returns `{ db, index, created, added, alreadyPresent, similarName }`.
+
+- It adds to the first collection whose name is exactly `name`, or creates the collection at the end. Nothing is trimmed and case counts, the way lazer matches.
+- A new name must not be empty, start or end with whitespace, or hold control characters or lone surrogates (`invalid_name`), and must be at most 127 UTF-8 bytes (`name_too_long`). Trim what the user typed before you call it. Existing names aren't checked, so you can always add to a collection that's already in the file.
+- Every hash must be 32 hex characters, else `invalid_hash` with the hash's position in `hashes`. Hashes are lowercased, and ones the collection already holds are skipped and counted in `alreadyPresent` (repeats in `hashes` too). An uppercase hash already in the file doesn't count as present, since lazer never matches it.
+- Existing entries are never removed or reordered, hashes for missing maps included.
+- `similarName`, set only when it created the collection, is an existing name equal to `name` apart from case, outer whitespace or Unicode form ("Farm" when you asked for "farm"). Ask the user before you make a second collection.
+
+**`mergeCollections(target, source)`** merges another file, like a shared collection pack, into `target` with lazer's import rules: each source collection goes into the target collection with the same exact name, or is created at the end. It returns `{ db, created, added, alreadyPresent, invalid }`. Source names are used as they are. Source hashes that aren't 32 hex characters are skipped and counted in `invalid`. One difference from lazer: lazer keeps a hash that repeats inside a collection it creates from the file, and this never adds a hash a collection already holds.
+
+**`lazerImportFiles(db)`** returns `[{ path: "collection.db", bytes }, { path: "osu!.import.cfg", bytes }]`, the second one empty. It throws whatever `writeCollectionDb` throws.
+
+None of these change their arguments. Each returns new objects, so a call whose result you throw away is a preview.
+
+### Errors and warnings
+
+A `CollectionDbError` has a `code`, and `offset` (the byte in the file, for read errors), `collection` (its index) and `hash` (its position in that collection) when they apply, else null. Messages name the field and position but never a collection name or hash, so they're safe to log. Branch on the codes you know; later versions may add codes.
+
+| Code | When |
+| --- | --- |
+| `too_large` | The input or output is over `maxBytes`. |
+| `truncated` | The file ends partway through a field, or is under 8 bytes. |
+| `bad_count` | A negative collection or hash count, or one the bytes left can't hold (at least 5 bytes per collection, 1 per hash). |
+| `bad_marker` | A string marker other than `0x00` or `0x0b` (not in lenient mode). |
+| `bad_length` | A string length longer than 5 bytes, over 2^31 - 1, or running past the end. |
+| `invalid_utf8` | A name or hash that isn't valid UTF-8 (not in lenient mode). |
+| `trailing_bytes` | Bytes after the last collection (not in lenient mode). Often the wrong file, like `osu!.db`. |
+| `invalid_version` | A version that isn't an integer from -2^31 to 2^31 - 1. |
+| `invalid_name` | A name that isn't a string or holds a lone surrogate, or a new name that breaks the rules above. |
+| `name_too_long` | A new name over 127 UTF-8 bytes. |
+| `invalid_hash` | A hash that isn't a string (writing), or isn't 32 hex characters (`addToCollection`). |
+
+Each warning is `{ code, offset, collection, hash }`. `hash` is the hash's place in that collection's list in the file, which is its index in `hashes` unless a null hash was dropped before it.
+
+| Warning | Meaning | Kept? |
+| --- | --- | --- |
+| `null_name` | A null name marker (`0x00`). | Read as `""`, written as an empty string. |
+| `empty_name` | An empty name. | Yes |
+| `duplicate_name` | The same exact name as an earlier collection. | Yes |
+| `null_hash` | A null hash marker. | Dropped |
+| `duplicate_hash` | The same hash earlier in this collection. | Yes |
+| `uppercase_hash` | 32 hex characters with some uppercase. Lazer won't match it. | Yes, unchanged |
+| `malformed_hash` | Not 32 hex characters. | Yes, unchanged |
+| `unknown_marker` | Lenient only: a marker other than `0x00` or `0x0b`, read as a string. | Yes |
+| `invalid_utf8` | Lenient only: invalid UTF-8, replaced with U+FFFD. | Yes, changed |
+| `trailing_bytes` | Lenient only: bytes after the last collection. | Dropped |
+
+### Collections exports
+
+| Export | What it is |
+| --- | --- |
+| `readCollectionDb`, `ReadCollectionDbOptions`, `CollectionDbRead` | The reader, its options, and its result. |
+| `CollectionDbWarning`, `CollectionDbWarningCode` | A reader warning and its `code` values. |
+| `writeCollectionDb` | The writer. |
+| `createCollectionDb`, `normalizeHash`, `collectionHashesFor`, `addToCollection`, `mergeCollections`, `lazerImportFiles` | The helpers above. |
+| `CollectionDb`, `OsuCollection` | `{ version, collections }` and `{ name, hashes }`. |
+| `CollectionDbError`, `CollectionDbErrorCode` | The error, and its `code` values. `new CollectionDbError(code, message, { offset, collection, hash })` builds one, for tests. |
+| `MAX_COLLECTION_DB_BYTES`, `MAX_COLLECTION_NAME_BYTES`, `DEFAULT_COLLECTION_DB_VERSION`, `COLLECTION_DB_FILENAME` | 64 MiB, 127, 20150203, and `"collection.db"`. |
+
 ## Compatibility
 
 - **Node** 22.12 or later. CI runs the built package on Node 22.12 and 24.
 - **Bun** runs it too. CI tests on Node only.
-- **Browsers:** import only `@haruhimemoe/osu/shapes`. Keep `createOsuClient` on a server, since it holds your client secret. The client uses web-standard APIs (`fetch`, `AbortSignal.timeout`, `URL`) and no Node built-ins.
+- **Browsers:** import only `@haruhimemoe/osu/shapes` and `@haruhimemoe/osu/collections`. Keep `createOsuClient` on a server, since it holds your client secret. The client uses web-standard APIs (`fetch`, `AbortSignal.timeout`, `URL`) and no Node built-ins. `/collections` uses only `TextEncoder`, `TextDecoder` and `DataView`.
 - **`zod`** is a peer dependency, `^4.0.16`. CI checks a consumer against zod 4.0.16 and the newest release.
-- **TypeScript:** your config needs the `DOM` lib or `@types/node`, since the client's types use `URL`, `Response` and `RequestInit`, and zod's own types use `URL`. `moduleResolution` must be `node16`, `nodenext` or `bundler`: `@haruhimemoe/osu/shapes` resolves only through the package's `exports` map, which the legacy `node` (`node10`) setting ignores.
+- **TypeScript:** your config needs the `DOM` lib or `@types/node`, since the client's types use `URL`, `Response` and `RequestInit`, and zod's own types use `URL`. `moduleResolution` must be `node16`, `nodenext` or `bundler`: `@haruhimemoe/osu/shapes` and `@haruhimemoe/osu/collections` resolve only through the package's `exports` map, which the legacy `node` (`node10`) setting ignores. The `/collections` types use `Uint8Array<ArrayBuffer>`, which needs TypeScript 5.7 or later.
 
 ## License
 

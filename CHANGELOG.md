@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- `@haruhimemoe/osu/collections`, safe in browsers and free of zod: `readCollectionDb` and `writeCollectionDb` for osu!stable's `collection.db`. A file stable wrote round-trips byte for byte. The reader reports oddities as warnings and throws a `CollectionDbError` with a `code` and byte offset for a file it can't read. Both take a `maxBytes` limit (64 MiB by default).
+- Helpers that never change their arguments: `createCollectionDb`, `normalizeHash`, `collectionHashesFor`, `addToCollection` (by exact name, no duplicate hashes, a `similarName` hint), `mergeCollections` (lazer's import rules), and `lazerImportFiles` (the two files lazer's setup wizard imports).
+- The root entry point re-exports `/collections`. These are new public exports, so the next release is a minor version.
+
 ## [0.1.0] - 2026-09-23
 
 ### Added
