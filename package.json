@@ -6,9 +6,12 @@
     "osu",
     "osu!",
     "osu-api",
+    "osu-api-v2",
     "api-client",
     "beatmap",
-    "star-rating"
+    "beatmapset",
+    "star-rating",
+    "zod"
   ],
   "homepage": "https://github.com/haruhimemoe/osu#readme",
   "bugs": "https://github.com/haruhimemoe/osu/issues",

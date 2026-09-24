@@ -8,52 +8,108 @@ osu! API v2 for the haruhime.moe tools (packs, pools, sheets), in two parts:
 ## Install
 
 ```sh
+npm install @haruhimemoe/osu zod
+# or
 bun add @haruhimemoe/osu zod
 ```
 
-`zod` (4.0.16 or later in 4.x) is a peer dependency. CI checks a consumer against 4.0.16 and the newest zod.
+`zod` (4.0.16 or later in 4.x) is a peer dependency. The package is ESM only.
 
 ## The client
 
 ```ts
+// osu.ts
 import { createOsuClient } from "@haruhimemoe/osu";
 
 // One client per process: the token is cached on it.
 export const osu = createOsuClient({
   userAgent: "my-tool (+https://example.com; me@example.com)",
-  credentials: () => ({ clientId: env.OSU_CLIENT_ID, clientSecret: env.OSU_CLIENT_SECRET }),
+  credentials: () => ({
+    clientId: process.env.OSU_CLIENT_ID ?? "",
+    clientSecret: process.env.OSU_CLIENT_SECRET ?? "",
+  }),
 });
-
-await osu.getBeatmaps([129891, 75]); // { found: Map<id, BeatmapMeta>, missing: [], unchecked: [] }
-await osu.getStarRating(129891, ["HD", "HR"]); // 8.61, or null for a missing map or unratable mods
-await osu.getBeatmapsets([129891]); // { sets: Map<beatmapId, the set's content fields>, unchecked: [] }
 ```
 
-- **Keep it on the server.** It holds your client secret. Browsers use `/shapes` and ask your server. Its types use `fetch`'s `Response` and `RequestInit`, so your TypeScript config needs the `DOM` lib or `@types/node`, as any fetch-based code does.
-- **`userAgent`** names your app and how to reach you. It goes on every request, the token request included.
-- **`credentials`** can be an object or a function. Both must give two non-empty strings, else you get a `TypeError` that names the field but not its value. A function is called on every token request (the first call, each daily refresh, and after a 401), never at import, so importing the module never needs env and a rotated secret is picked up. If it throws, its error reaches you unchanged.
-- **`baseUrl`** (default `https://osu.ppy.sh`) also receives your client secret, because token requests go there. Point it only at osu! itself or your own test server, never at a mirror. It must be `https`, or `http` on `localhost` / `127.0.0.1`, else `createOsuClient` throws a `RangeError`.
-- **`timeoutMs`** (default 10 s): each request, answer and body, gives up after this long, so a hung osu! call can't hold a serverless function. It must be an integer from 1 to 2147483647, else `RangeError`.
-- **`fetch`** and **`now`** replace `globalThis.fetch` and the token clock, for tests.
-- **Errors:** every failure talking to osu! is an `OsuApiError` with a `code`, the HTTP `status` (null when there was none), `retryAfterMs`, and the underlying error as `cause`. Codes: `"timeout"`, `"network"`, `"bad_response"` (not JSON, or not the expected shape), `"http_error"`, and `"budget"` (only `getStarRating`, below). Branch on the ones you know; later versions may add codes. `retryAfterMs` is osu!'s `Retry-After` on a 429 or 503, capped at 60 s, else null. A 401 is retried once with a fresh token. Other errors are yours: bad arguments throw `RangeError` and bad credentials `TypeError`, both before anything is sent, and an error thrown by your `credentials` function or `beforeCall` comes through unchanged.
-- **`getBeatmaps(ids, { beforeCall })`** asks `/beatmaps` 50 ids at a time and returns `{ found, missing, unchecked }`:
-  - `found`: `BeatmapMeta` by id.
-  - `missing`: ids that aren't positive integers (never sent), and ids osu! answered no row for (unless that batch had a row without a readable `id`, below).
-  - `unchecked`: ids in a batch `beforeCall` refused; ids whose row osu! sent but that fails our schema; and, when a row in a batch has no readable `id`, every id in that batch without a good row (we can't tell which one it was).
-  - It throws when the token request fails, or a `/beatmaps` call answers an error status (after the one 401 retry), sends a body that isn't `{ beatmaps: [...] }`, times out, or can't reach osu!. The whole call throws, and batches already fetched are lost.
-- **`getBeatmapsets(ids, { beforeCall, fallbackLimit })`** returns `{ sets, unchecked }`. `sets` is keyed by beatmap (difficulty) id, not set id, and sibling difficulties share one set object. Each set holds the content fields in `OsuBeatmapsetExtended`, not osu!'s whole object. It asks `/beatmaps` 50 ids at a time. When a row's set comes compact, it asks `/beatmapsets/{id}` for that set, at most `fallbackLimit` times per call (10 by default; 0 makes no fallback calls).
-  - `unchecked`: ids in a `/beatmaps` batch `beforeCall` refused; ids whose row fails our schema (every id of the batch without a good row, when a row has no readable `id`); ids whose set came compact and wasn't looked up because `fallbackLimit` was spent or `beforeCall` refused; and ids whose `/beatmapsets/{id}` lookup failed any way but a 404: an error status, a failed token request, a timeout, a network failure, or a body that isn't a readable, extended set. A failed lookup still counts against `fallbackLimit`, and the call keeps the sets it already has.
-  - In neither: ids that aren't positive integers (never sent), ids osu! answered no row for (same exception as `getBeatmaps`), and ids whose set lookup answered 404 (the set is gone).
-  - It throws `RangeError` for a `fallbackLimit` that isn't a non-negative integer, before anything is sent. It throws `OsuApiError` when the token request before a `/beatmaps` call fails, or a `/beatmaps` call fails as in `getBeatmaps`. A failed fallback lookup never throws an `OsuApiError`.
-- **`getStarRating(id, mods, { beforeCall })`** makes one call (plus the 401 retry). It returns null when osu! answers 404 or 422, and rejects with code `"budget"` when `beforeCall` refuses.
+```ts
+import { osu } from "./osu.js";
+
+const { found, missing, unchecked } = await osu.getBeatmaps([129891, 75]);
+console.log(found.get(75)?.title, missing, unchecked);
+
+const stars = await osu.getStarRating(129891, ["HD", "HR"]); // a number, or null
+
+const { sets } = await osu.getBeatmapsets([129891]);
+console.log(sets.get(129891)?.availability.download_disabled);
+```
+
+Keep the client on the server. It holds your client secret. Browsers use `/shapes` and ask your server.
+
+The client uses the client credentials grant with scope `public`. It asks for a token on the first call, shares that request between concurrent calls, and reuses the token until a minute before it expires. A 401 drops the token and retries the call once with a fresh one.
+
+### Options
+
+`createOsuClient(options)` takes:
+
+- **`userAgent`** (required): names your app and how to reach you. It goes on every request, the token request included. An empty value, or one with a line break or other control character, throws a `TypeError`.
+- **`credentials`** (required): `{ clientId, clientSecret }`, or a function that returns it. Both fields must be strings that aren't blank, else you get a `TypeError` that names the field but not its value. An object is checked when you create the client. A function is called on every token request (the first call, each refresh, and after a 401), never at import, so importing the module never needs env and a rotated secret is picked up. If it throws, its error reaches you unchanged.
+- **`baseUrl`** (default `https://osu.ppy.sh`): token requests go here too, so this server receives your client secret. Point it only at osu! itself or your own test server, never at a mirror. It must be an absolute `https` URL, or `http` on `localhost` / `127.0.0.1`, else `createOsuClient` throws a `RangeError`. Trailing slashes are dropped.
+- **`timeoutMs`** (default `10000`): each request, answer and body, gives up after this long, so a hung osu! call can't hold a serverless function. It must be an integer from 1 to 2147483647, else `RangeError`.
+- **`fetch`** and **`now`**: replace `globalThis.fetch` and the token clock (`Date.now`), for tests.
+
+### Methods
+
+**`getBeatmaps(ids, { beforeCall })`** asks `/api/v2/beatmaps` 50 ids at a time, after dropping duplicates, and returns `{ found, missing, unchecked }`:
+
+- `found`: `BeatmapMeta` by difficulty id.
+- `missing`: ids that aren't positive safe integers (never sent), and ids osu! answered no row for (unless that batch had a row without a readable `id`, below).
+- `unchecked`: ids in a batch `beforeCall` refused; ids whose row osu! sent but that fails our schema; and, when a row in a batch has no readable `id`, every id in that batch without a good row (we can't tell which one it was).
+- It throws an `OsuApiError` when the token request fails, or a `/beatmaps` call answers an error status (after the one 401 retry), sends a body that isn't `{ beatmaps: [...] }`, times out, or can't reach osu!. The whole call throws, and batches already fetched are lost.
+
+**`getBeatmapsets(ids, { beforeCall, fallbackLimit })`** returns `{ sets, unchecked }`. `sets` is keyed by beatmap (difficulty) id, not set id, and sibling difficulties share one set object. Each set holds the content fields in `OsuBeatmapsetExtended`, not osu!'s whole object. It asks `/api/v2/beatmaps` 50 ids at a time. When a row's set comes compact, it asks `/api/v2/beatmapsets/{id}` for that set, at most `fallbackLimit` times per call (10 by default; 0 makes no fallback calls).
+
+- `unchecked`: ids in a `/beatmaps` batch `beforeCall` refused; ids whose row fails our schema (every id of the batch without a good row, when a row has no readable `id`); ids whose set came compact and wasn't looked up because `fallbackLimit` was spent or `beforeCall` refused; and ids whose `/beatmapsets/{id}` lookup failed any way but a 404: an error status, a failed token request, a timeout, a network failure, or a body that isn't a readable, extended set. A failed lookup still counts against `fallbackLimit`, and the call keeps the sets it already has.
+- In neither: ids that aren't positive safe integers (never sent), ids osu! answered no row for (same exception as `getBeatmaps`), and ids whose set lookup answered 404 (the set is gone).
+- It throws `RangeError` for a `fallbackLimit` that isn't a non-negative integer, before anything is sent. It throws `OsuApiError` when the token request before a `/beatmaps` call fails, or a `/beatmaps` call fails as in `getBeatmaps`. A failed fallback lookup never throws an `OsuApiError`.
+
+**`getStarRating(id, mods, { beforeCall })`** asks `POST /api/v2/beatmaps/{id}/attributes` with `mods` as acronyms (`["HD", "HR"]`) and returns osu!'s star rating for the map in its own ruleset. It makes one call (plus the 401 retry). It returns null when osu! answers 404 (no such map) or 422 (mods it won't rate). It rejects with code `"budget"` when `beforeCall` refuses, and throws `RangeError` when `id` isn't a positive safe integer. The no-mod rating already comes with `BeatmapMeta` as `starRating`.
+
+### Errors
+
+Every failure talking to osu! is an `OsuApiError` with:
+
+- `code`: `"timeout"`, `"network"`, `"bad_response"` (not JSON, or not the expected shape), `"http_error"`, or `"budget"` (only `getStarRating`). Branch on the ones you know; later versions may add codes.
+- `status`: osu!'s HTTP status, or null when there was none (network failure, timeout before an answer, budget).
+- `retryAfterMs`: osu!'s `Retry-After` on a 429 or 503, capped at 60 s, else null.
+- `cause`: the underlying error, when there is one.
+
+Other errors are yours. Bad arguments throw `RangeError`, and bad credentials or a bad `userAgent` throw `TypeError`, before the request they'd affect is sent. An error thrown by your `credentials` function or `beforeCall` comes through unchanged.
+
+```ts
+import { OsuApiError } from "@haruhimemoe/osu";
+import { osu } from "./osu.js";
+
+try {
+  await osu.getStarRating(129891, ["DT"]);
+} catch (error) {
+  if (!(error instanceof OsuApiError)) throw error; // a RangeError, TypeError, or your own error
+  if (error.code === "http_error" && error.status === 429) {
+    console.log(`osu! says wait ${error.retryAfterMs ?? 60_000} ms`);
+  }
+}
+```
 
 ### Staying under osu!'s rate limit
 
 osu! asks API users to stay at or under 60 requests a minute, and to cache what they fetch. Budget per OAuth app, not per request handler: if several features or serverless instances share one app, give them one counter. By default there is no budget: `getBeatmaps` with 5,000 ids makes 100 calls back to back. Pass `beforeCall` to all three methods. They ask it before each planned osu! call and skip the call when it returns false: `getBeatmaps` and `getBeatmapsets` put that call's ids in `unchecked`, and `getStarRating` rejects with code `"budget"`. Token requests aren't counted, and neither is the one retry after a 401, so an approved call can cost one more API call plus a token request. Leave headroom for that.
 
 ```ts
-// A fixed-window counter shared by every instance (MongoDB 7 driver here; any atomic store works).
+// A fixed-window counter shared by every instance (MongoDB driver 7 here; any atomic store works).
+import { MongoClient } from "mongodb";
+import { osu } from "./osu.js";
+
 type Counter = { _id: string; count: number; expiresAt: Date };
+const db = new MongoClient(process.env.MONGODB_URI ?? "mongodb://localhost:27017").db("my-tool");
 const counters = db.collection<Counter>("rate_limits");
 // Once, at startup: delete counters after their window.
 await counters.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
@@ -69,7 +125,7 @@ const beforeCall = async (): Promise<boolean> => {
   return (counter?.count ?? Number.POSITIVE_INFINITY) <= 50;
 };
 
-await osu.getBeatmapsets(ids, { beforeCall });
+await osu.getBeatmapsets([129891, 75], { beforeCall });
 await osu.getStarRating(129891, ["HD"], { beforeCall });
 ```
 
@@ -81,39 +137,83 @@ await osu.getStarRating(129891, ["HD"], { beforeCall });
 | `BeatmapLookup`, `BeatmapOptions` | `getBeatmaps`' result and options. |
 | `BeatmapsetLookup`, `BeatmapsetOptions` | `getBeatmapsets`' result and options. |
 | `StarRatingOptions` | `getStarRating`'s options. |
-| `OsuApiError`, `OsuApiErrorCode` | The error, and its `code` values. |
+| `OsuApiError`, `OsuApiErrorCode` | The error, and its `code` values. `new OsuApiError(code, message, { status, retryAfterMs, cause })` builds one, for tests. |
 | `OSU_BEATMAPS_BATCH_LIMIT`, `BEATMAPSET_FALLBACK_LIMIT`, `OSU_TIMEOUT_MS` | 50 ids per `/beatmaps` call, the default `fallbackLimit` (10), the default `timeoutMs` (10,000). |
 
 The root entry point also re-exports everything in `/shapes`.
 
 ## Shapes
 
+`@haruhimemoe/osu/shapes` has no I/O and no secrets. Its schemas use osu!'s snake_case field names and strip unknown keys. The mapped types (`BeatmapMeta`, `OsuUser`) use camelCase.
+
 ```ts
-import { coverUrl, isExtendedBeatmapset, toOsuUser, type BeatmapMeta } from "@haruhimemoe/osu/shapes";
+import {
+  type BeatmapMeta,
+  beatmapUrl,
+  coverUrl,
+  OSU_OAUTH,
+  osuBeatmapRowSchema,
+  toBeatmapMeta,
+  toOsuUser,
+} from "@haruhimemoe/osu/shapes";
+
+// A /api/v2/beatmaps row, from osu! or a mirror that copies its shape. A row that doesn't fit throws a ZodError.
+export const readRow = (raw: unknown): BeatmapMeta => toBeatmapMeta(osuBeatmapRowSchema.parse(raw));
+
+export const card = (meta: BeatmapMeta) => ({
+  name: `${meta.artist} - ${meta.title} [${meta.version}]`,
+  link: beatmapUrl(meta.beatmapId),
+  cover: coverUrl(meta.beatmapsetId, "list@2x"),
+});
+
+// After "sign in with osu!", on your server: who signed in, from the user's access token.
+export const signedIn = async (accessToken: string) => {
+  const response = await fetch(OSU_OAUTH.userInfoUrl, {
+    headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
+  });
+  return toOsuUser(await response.json()); // { osuId, username, avatarUrl, countryCode }
+};
 ```
 
 | Export | What it is |
 | --- | --- |
-| `BeatmapMeta`, `beatmapMetaSchema` | A difficulty: ids, ruleset, title, artist, version, creator, CS/AR/OD/HP, BPM, length, stars, md5 checksum. |
-| `osuBeatmapRowSchema`, `OsuBeatmapRow`, `toBeatmapMeta` | osu!'s `/api/v2/beatmaps` row, and its mapping to `BeatmapMeta`. Mirrors that copy osu!'s shape parse the same way. |
-| `RULESETS`, `Ruleset`, `rulesetSchema` | `osu`, `taiko`, `fruits`, `mania`. |
-| `osuBeatmapsetSchema`, `OsuBeatmapset`, `OsuBeatmapsetExtended`, `isExtendedBeatmapset`, `osuBeatmapsetRowSchema` | A beatmapset's status, artist and title (with unicode forms), source, tags, Featured Artist `track_id` and `availability`. Extended means all of those are present. Pass an extended set to `@haruhimemoe/compliance`'s `factsFromOsuBeatmapset`. |
-| `osuUserSchema`, `toOsuUser`, `OsuUser` | `/api/v2/me` reduced to `{ osuId, username, avatarUrl, countryCode }`. osu! never shares an email. |
-| `OSU_OAUTH`, `OSU_SIGN_IN_SCOPES`, `OSU_BASE_URL` | Sign-in endpoints (authorize, token, `/me`) and scopes (`identify public`). |
-| `coverUrl`, `CoverSize`, `beatmapUrl`, `beatmapsetUrl`, `userUrl` | osu! pages and cover art on assets.ppy.sh. |
+| `BeatmapMeta`, `beatmapMetaSchema` | A difficulty's metadata, whatever source it came from. Fields below. |
+| `osuBeatmapRowSchema`, `OsuBeatmapRow`, `toBeatmapMeta` | osu!'s `/api/v2/beatmaps` row (reduced to what `BeatmapMeta` needs), and its mapping to `BeatmapMeta`. Mirrors that copy osu!'s shape parse the same way. |
+| `RULESETS`, `Ruleset`, `rulesetSchema` | `"osu"`, `"taiko"`, `"fruits"`, `"mania"`. |
+| `osuBeatmapsetSchema`, `OsuBeatmapset` | A beatmapset's content fields, as osu! names them: `id`, `status`, `artist`, `title`, `artist_unicode`, `title_unicode`, `source`, `tags`, the Featured Artist `track_id`, and `availability` (`download_disabled`, `more_information`). A compact set lacks `availability`, `track_id` or `tags`. |
+| `OsuBeatmapsetExtended`, `isExtendedBeatmapset` | A set with `availability`, `track_id` and `tags` all present (`track_id` and `tags` may be null), and the type guard that checks it. A compact set needs `/api/v2/beatmapsets/{id}`. Pass an extended set to [`@haruhimemoe/compliance`](https://github.com/haruhimemoe/compliance)'s `factsFromOsuBeatmapset`. |
+| `osuBeatmapsetRowSchema` | A `/api/v2/beatmaps` row reduced to `id`, `beatmapset_id` and its `beatmapset`. |
+| `osuUserSchema`, `toOsuUser`, `OsuUser` | `/api/v2/me` reduced to `{ osuId, username, avatarUrl, countryCode }`. `toOsuUser` takes the raw profile, reads the country from `country.code`, else `country_code`, and throws a `ZodError` when there's no id or username. osu! never shares an email. |
+| `OSU_BASE_URL`, `OSU_OAUTH`, `OSU_SIGN_IN_SCOPES` | `https://osu.ppy.sh`; the sign-in endpoints (`authorizationUrl`, `tokenUrl`, and `userInfoUrl` for `/api/v2/me`); and the scopes `["identify", "public"]`. |
+| `coverUrl`, `CoverSize`, `beatmapUrl`, `beatmapsetUrl`, `userUrl` | osu! pages, and cover art on assets.ppy.sh. `coverUrl(setId, size)` takes `"card"` (the default), `"card@2x"`, `"list"`, `"list@2x"`, `"cover"` or `"cover@2x"`. |
+
+`BeatmapMeta` fields, and the osu! row field each comes from:
+
+| Field | Type | From osu!'s row |
+| --- | --- | --- |
+| `beatmapId`, `beatmapsetId` | positive integer | `id`, `beatmapset_id` |
+| `mode` | `Ruleset` | `mode` |
+| `title`, `artist`, `creator` | string | `beatmapset.title`, `beatmapset.artist`, `beatmapset.creator` |
+| `version` | string | `version` (the difficulty name) |
+| `creatorId` | positive integer or null | `beatmapset.user_id` |
+| `cs`, `ar`, `od`, `hp` | number | `cs`, `ar`, `accuracy`, `drain` |
+| `bpm` | number | `bpm` |
+| `lengthSeconds` | integer | `total_length`, rounded |
+| `starRating` | number | `difficulty_rating` (no mods) |
+| `checksum` | string or null | `checksum`, kept only when it's an md5 (32 lowercase hex characters) |
 
 ## Compatibility
 
-- **Node** 22.12 or later (needs native `fetch` and `AbortSignal.timeout`). CI runs the dist build on 22.12 (the floor) and the current LTS.
-- **Bun** works the same way; developed and tested against bun 1.4.2+.
-- **Browsers and edge runtimes:** only `@haruhimemoe/osu/shapes` is safe there, no I/O, no secrets, no Node built-ins. Keep `createOsuClient` server-side, since it holds your client secret.
-- **`zod`** is a peer dependency, `^4.0.16` (any 4.x from there up). CI checks a consumer against 4.0.16 and the newest 4.x release.
-- Your TypeScript config needs the `DOM` lib or `@types/node`, since the client's types use `fetch`'s `Response` and `RequestInit`.
+- **Node** 22.12 or later. CI runs the built package on Node 22.12 and 24.
+- **Bun** runs it too. CI tests on Node only.
+- **Browsers:** import only `@haruhimemoe/osu/shapes`. Keep `createOsuClient` on a server, since it holds your client secret. The client uses web-standard APIs (`fetch`, `AbortSignal.timeout`, `URL`) and no Node built-ins.
+- **`zod`** is a peer dependency, `^4.0.16`. CI checks a consumer against zod 4.0.16 and the newest release.
+- **TypeScript:** your config needs the `DOM` lib or `@types/node`, since the client's types use `fetch`'s `Response` and `RequestInit`.
 
 ## License
 
-MIT. See [LICENSE](LICENSE). Not affiliated with osu! or ppy Pty Ltd. Using the osu! API means following its terms: https://osu.ppy.sh/docs#terms-of-use
+MIT. See [LICENSE](LICENSE). Not affiliated with osu! or ppy Pty Ltd. Using the osu! API means following its [terms of use](https://osu.ppy.sh/docs/#terms-of-use).
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for dev setup and how to submit a change, and [CHANGELOG.md](CHANGELOG.md) for release history.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for dev setup and how to submit a change, [CHANGELOG.md](CHANGELOG.md) for release history, and [SECURITY.md](SECURITY.md) to report a vulnerability.

@@ -1,0 +1,42 @@
+# @haruhimemoe/osu
+
+> osu! API v2 for TypeScript, in two entry points. `@haruhimemoe/osu/shapes` is browser-safe: zod schemas and types for a difficulty (`BeatmapMeta` and osu!'s `/api/v2/beatmaps` row), a beatmapset's content fields (`OsuBeatmapsetExtended`), and the signed-in user (`toOsuUser`), plus osu! page and cover URLs and the sign-in endpoints. `@haruhimemoe/osu` adds `createOsuClient` for servers: a cached client-credentials token, a required User-Agent, per-request timeouts, a `beforeCall` hook for a shared rate budget, and `getBeatmaps`, `getBeatmapsets` and `getStarRating`. Every failure talking to osu! is an `OsuApiError` with a `code`. ESM only, Node 22.12 or later, zod ^4.0.16 as a peer dependency, MIT.
+
+Keep `createOsuClient` on a server: it holds the OAuth client secret. Browser code imports only `@haruhimemoe/osu/shapes`.
+
+## Docs
+
+- [Install](https://github.com/haruhimemoe/osu#install): npm or bun, with zod as a peer dependency.
+- [The client](https://github.com/haruhimemoe/osu#the-client): one client per process, and how the token is cached and refreshed.
+- [Options](https://github.com/haruhimemoe/osu#options): `userAgent`, `credentials`, `baseUrl`, `timeoutMs`, `fetch` and `now`, with defaults and the errors bad values throw.
+- [Methods](https://github.com/haruhimemoe/osu#methods): `getBeatmaps`, `getBeatmapsets` and `getStarRating`, and exactly which ids land in `found`, `missing` or `unchecked`.
+- [Errors](https://github.com/haruhimemoe/osu#errors): `OsuApiError`'s `code`, `status`, `retryAfterMs` and `cause`.
+- [Staying under osu!'s rate limit](https://github.com/haruhimemoe/osu#staying-under-osus-rate-limit): a `beforeCall` budget shared by every instance.
+- [Client exports](https://github.com/haruhimemoe/osu#client-exports): the root entry point's exports.
+- [Shapes](https://github.com/haruhimemoe/osu#shapes): the `/shapes` exports and every `BeatmapMeta` field.
+- [Compatibility](https://github.com/haruhimemoe/osu#compatibility): Node, Bun, browsers, zod and TypeScript.
+
+## Source
+
+- [src/client.ts](https://github.com/haruhimemoe/osu/blob/main/src/client.ts): `createOsuClient`, `OsuApiError` and the option and result types, with JSDoc on each method.
+- [src/shapes/beatmap.ts](https://github.com/haruhimemoe/osu/blob/main/src/shapes/beatmap.ts): rulesets, `BeatmapMeta`, osu!'s beatmap row and `toBeatmapMeta`.
+- [src/shapes/beatmapset.ts](https://github.com/haruhimemoe/osu/blob/main/src/shapes/beatmapset.ts): beatmapset content fields and `isExtendedBeatmapset`.
+- [src/shapes/user.ts](https://github.com/haruhimemoe/osu/blob/main/src/shapes/user.ts): the `/api/v2/me` schema and `toOsuUser`.
+- [src/shapes/links.ts](https://github.com/haruhimemoe/osu/blob/main/src/shapes/links.ts): `OSU_BASE_URL`, `OSU_OAUTH`, `OSU_SIGN_IN_SCOPES`, `coverUrl`, `beatmapUrl`, `beatmapsetUrl`, `userUrl`.
+
+## Package
+
+- [npm: @haruhimemoe/osu](https://www.npmjs.com/package/@haruhimemoe/osu): published versions.
+
+## Related
+
+- [osu! API v2 documentation](https://osu.ppy.sh/docs/): endpoints, scopes and the terms of use (at most 60 requests a minute).
+- [@haruhimemoe/compliance](https://github.com/haruhimemoe/compliance): judges an extended beatmapset with `factsFromOsuBeatmapset`.
+- [@haruhimemoe/hinai](https://github.com/haruhimemoe/hinai): a client for the hinai beatmap mirror that returns `BeatmapMeta` from these shapes.
+- [haruhime.moe](https://haruhime.moe): the osu! tournament tools this package is built for.
+
+## Optional
+
+- [CHANGELOG](https://github.com/haruhimemoe/osu/blob/main/CHANGELOG.md): release history.
+- [CONTRIBUTING](https://github.com/haruhimemoe/osu/blob/main/CONTRIBUTING.md): dev setup, checks and changelog lines.
+- [AGENTS.md](https://github.com/haruhimemoe/osu/blob/main/AGENTS.md): layout and rules for AI agents changing this repo.
