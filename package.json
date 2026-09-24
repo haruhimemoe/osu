@@ -1,7 +1,7 @@
 {
   "name": "@haruhimemoe/osu",
   "version": "0.1.0",
-  "description": "osu! API v2 for the haruhime.moe tools: beatmap, beatmapset and user shapes with zod schemas (browser-safe at /shapes), and a server client with token caching, a rate-budget hook, beatmaps, beatmapsets and star ratings with mods.",
+  "description": "osu! API v2 for the haruhime.moe tools: beatmap, beatmapset and user shapes with zod schemas (browser-safe at /shapes), a server client with token caching, a rate-budget hook, beatmaps, beatmapsets and star ratings with mods, and a browser-safe reader and writer for osu!stable's collection.db (at /collections).",
   "keywords": [
     "osu",
     "osu!",
@@ -11,6 +11,7 @@
     "beatmap",
     "beatmapset",
     "star-rating",
+    "collection-db",
     "zod"
   ],
   "homepage": "https://github.com/haruhimemoe/osu#readme",
@@ -30,6 +31,10 @@
     "./shapes": {
       "types": "./dist/shapes/index.d.ts",
       "default": "./dist/shapes/index.js"
+    },
+    "./collections": {
+      "types": "./dist/collections/index.d.ts",
+      "default": "./dist/collections/index.js"
     },
     "./package.json": "./package.json"
   },
