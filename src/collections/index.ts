@@ -1,12 +1,21 @@
 /**
  * @file src/collections/index.ts
- * @desc @haruhimemoe/osu/collections: read and write osu!stable's collection.db. Uint8Array in and
- *       out, no I/O and no runtime imports from outside this folder, so it's safe in browsers.
+ * @desc @haruhimemoe/osu/collections: read, edit and write osu!stable's collection.db, and build
+ *       the files lazer's setup wizard imports. Uint8Array in and out, no I/O and no runtime
+ *       imports from outside this folder, so it's safe in browsers.
  * @author David @dvhsh (https://dvh.sh)
  * @created Thu Sep 24, 2026
  * @modified Thu Sep 24, 2026
  */
 
+export {
+  addToCollection,
+  collectionHashesFor,
+  createCollectionDb,
+  lazerImportFiles,
+  mergeCollections,
+  normalizeHash,
+} from "./edit.js";
 export { CollectionDbError, type CollectionDbErrorCode } from "./errors.js";
 export {
   COLLECTION_DB_FILENAME,
