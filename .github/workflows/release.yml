@@ -1,7 +1,6 @@
 name: Release
 
-# Publishes to npm when a GitHub release is published, using npm trusted publishing (OIDC), so no
-# token is stored in this repo.
+# Publishes to npm when a GitHub release is published.
 
 on:
   release:
@@ -27,7 +26,6 @@ jobs:
         with:
           bun-version-file: package.json
 
-      # Trusted publishing needs npm 11.5.1 or later.
       - name: npm
         run: npm install -g npm@^11.5.1
 

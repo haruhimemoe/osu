@@ -14,5 +14,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `createOsuClient` for servers, with `getBeatmaps`, `getBeatmapsets` and `getStarRating`: a cached client-credentials token, a required User-Agent, timeouts, and a `beforeCall` hook for a shared rate budget.
 - `OsuApiError` with a `code`, the HTTP `status` and `retryAfterMs`.
 
-[unreleased]: https://github.com/haruhimemoe/osu/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/haruhimemoe/osu/releases/tag/v0.1.0
+[unreleased]: https://github.com/haruhimemoe/osu/compare/f89f0042f1d6559740dd995e41a8a59d86c35a6a...HEAD
+[0.1.0]: https://github.com/haruhimemoe/osu/tree/f89f0042f1d6559740dd995e41a8a59d86c35a6a

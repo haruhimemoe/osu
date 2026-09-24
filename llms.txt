@@ -9,12 +9,12 @@ Keep `createOsuClient` on a server: it holds the OAuth client secret. Browser co
 - [Install](https://github.com/haruhimemoe/osu#install): npm or bun, with zod as a peer dependency.
 - [The client](https://github.com/haruhimemoe/osu#the-client): one client per process, and how the token is cached and refreshed.
 - [Options](https://github.com/haruhimemoe/osu#options): `userAgent`, `credentials`, `baseUrl`, `timeoutMs`, `fetch` and `now`, with defaults and the errors bad values throw.
-- [Methods](https://github.com/haruhimemoe/osu#methods): `getBeatmaps`, `getBeatmapsets` and `getStarRating`, and exactly which ids land in `found`, `missing` or `unchecked`.
+- [Methods](https://github.com/haruhimemoe/osu#methods): `getBeatmaps`, `getBeatmapsets` and `getStarRating`, and exactly which ids land in each result list.
 - [Errors](https://github.com/haruhimemoe/osu#errors): `OsuApiError`'s `code`, `status`, `retryAfterMs` and `cause`.
 - [Staying under osu!'s rate limit](https://github.com/haruhimemoe/osu#staying-under-osus-rate-limit): a `beforeCall` budget shared by every instance.
 - [Client exports](https://github.com/haruhimemoe/osu#client-exports): the root entry point's exports.
 - [Shapes](https://github.com/haruhimemoe/osu#shapes): the `/shapes` exports and every `BeatmapMeta` field.
-- [Compatibility](https://github.com/haruhimemoe/osu#compatibility): Node, Bun, browsers, zod and TypeScript.
+- [Compatibility](https://github.com/haruhimemoe/osu#compatibility): Node, Bun, browsers, zod, and the TypeScript lib and `moduleResolution` settings.
 
 ## Source
 

@@ -105,7 +105,7 @@ export type OsuClientOptions = {
    */
   timeoutMs?: number | undefined;
   fetch?: ((input: string | URL, init?: RequestInit) => Promise<Response>) | undefined;
-  /** Clock for token expiry (tests). */
+  /** Clock for token expiry and for turning a Retry-After date into retryAfterMs (tests). */
   now?: (() => number) | undefined;
 };
 
@@ -469,8 +469,9 @@ export const createOsuClient = (options: OsuClientOptions) => {
      *          unanswered id of the batch when a row's id can't be read); and ids whose set came
      *          compact and wasn't looked up (fallbackLimit spent, or beforeCall refused) or whose
      *          /beatmapsets/{id} lookup failed in any way but a 404 (error status, token failure,
-     *          timeout, network, unreadable or still-compact body). A 404 means the set is gone:
-     *          its ids are in neither, like ids osu! answered no row for
+     *          timeout, network, unreadable or still-compact body). A 404 means the set is gone
+     *          (even one from a token request made during the lookup): its ids are in neither,
+     *          like ids osu! answered no row for
      * @throws {OsuApiError} when the token request before a /beatmaps call fails, or a /beatmaps
      *         call answers an error status (after the one 401 retry) or a body that isn't
      *         `{ beatmaps: [...] }`, times out, or can't reach osu!; the whole call fails
