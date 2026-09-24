@@ -2,7 +2,9 @@
  * @file tests/collections-read.test.ts
  * @desc readCollectionDb against hand-built vectors: the stable layout, osu! strings (ULEB128
  *       byte lengths, the null marker, non-ASCII UTF-8, a leading BOM), warnings for oddities it
- *       keeps, and a CollectionDbError with a code and byte offset for truncated or garbage input.
+ *       keeps (indexed into hashes, the first 1,000 listed), a CollectionDbError with a code and
+ *       byte offset for truncated or garbage input, and the maxBytes / 34 entry cap that stops
+ *       64 MiB of one- or two-byte entries before they're built.
  * @author David @dvhsh (https://dvh.sh)
  * @created Thu Sep 24, 2026
  * @modified Thu Sep 24, 2026
@@ -26,10 +28,19 @@ import {
   TV5_NULL_NAME,
   TV6_BAD_MARKER,
   TV7_SHORT,
+  toHex,
 } from "./collection-vectors.js";
 
 const HEADER_ONE = "bb 77 33 01  01 00 00 00"; // version 20150203, 1 collection
 const HEADER_TWO = "bb 77 33 01  02 00 00 00"; // version 20150203, 2 collections
+
+// A little-endian int32 as spaced hex, for counts.
+const int32 = (value: number): string => {
+  const bytes = new Uint8Array(4);
+  new DataView(bytes.buffer).setInt32(0, value, true);
+  return toHex(bytes);
+};
+const compactHex = (bytes: Uint8Array): string => toHex(bytes).replaceAll(" ", "");
 
 // The thrown value, so its fields can be matched.
 const thrown = (run: () => unknown): unknown => {
@@ -53,6 +64,7 @@ describe("readCollectionDb: the vectors", () => {
       version: 20150203,
       collections: [],
       warnings: [],
+      omittedWarnings: 0,
     });
   });
 
@@ -63,6 +75,7 @@ describe("readCollectionDb: the vectors", () => {
       version: 20210520,
       collections: [{ name: "Farm", hashes: [MD5_EMPTY, MD5_A] }],
       warnings: [],
+      omittedWarnings: 0,
     });
   });
 
@@ -76,6 +89,7 @@ describe("readCollectionDb: the vectors", () => {
         { name: "", hashes: [] },
       ],
       warnings: [{ code: "empty_name", offset: 54, collection: 1, hash: null }],
+      omittedWarnings: 0,
     });
   });
 
@@ -92,6 +106,7 @@ describe("readCollectionDb: the vectors", () => {
       version: 20150203,
       collections: [{ name: "", hashes: [] }],
       warnings: [{ code: "null_name", offset: 8, collection: 0, hash: null }],
+      omittedWarnings: 0,
     });
   });
 
@@ -106,11 +121,13 @@ describe("readCollectionDb: the vectors", () => {
       version: 20150203,
       collections: [{ name: "hi", hashes: [] }],
       warnings: [{ code: "unknown_marker", offset: 8, collection: 0, hash: null }],
+      omittedWarnings: 0,
     });
   });
 
   it("rejects TV7's count: 2 collections can't fit in the 7 bytes left", () => {
-    // Every collection takes at least 5 bytes (marker and hash count), checked before reading.
+    // Every collection takes at least 5 bytes (marker and hash count). Counts are checked before
+    // the records are read, so a file cut off soon after a count is a bad_count, not truncated.
     expect(readError(hex(TV7_SHORT))).toMatchObject({
       code: "bad_count",
       offset: 4,
@@ -223,21 +240,56 @@ describe("readCollectionDb: warnings", () => {
         { code: "duplicate_hash", offset: 49, collection: 0, hash: 1 },
         { code: "uppercase_hash", offset: 83, collection: 0, hash: 2 },
         { code: "malformed_hash", offset: 117, collection: 0, hash: 3 },
-        { code: "null_hash", offset: 122, collection: 0, hash: 4 },
+        { code: "null_hash", offset: 122, collection: 0, hash: null },
         { code: "duplicate_name", offset: 123, collection: 1, hash: null },
+      ],
+      omittedWarnings: 0,
+    });
+  });
+
+  it("points a warning's hash at its index in hashes, and a dropped null hash at nothing", () => {
+    const upper = MD5_EMPTY.toUpperCase();
+    const bytes = hex(
+      `${HEADER_ONE} 0b 01 41 03 00 00 00 00 0b 20 ${asciiHex(upper)} 0b 03 61 62 63`,
+    );
+    const read = readCollectionDb(bytes);
+    expect(read).toMatchObject({
+      collections: [{ name: "A", hashes: [upper, "abc"] }],
+      warnings: [
+        { code: "null_hash", offset: 15, collection: 0, hash: null },
+        { code: "uppercase_hash", offset: 16, collection: 0, hash: 0 },
+        { code: "malformed_hash", offset: 50, collection: 0, hash: 1 },
+      ],
+    });
+    // What a UI does with a warning: highlight collections[collection].hashes[hash].
+    const [, uppercase, malformed] = read.warnings;
+    expect(read.collections[0]?.hashes[uppercase?.hash ?? -1]).toBe(upper);
+    expect(read.collections[0]?.hashes[malformed?.hash ?? -1]).toBe("abc");
+  });
+
+  it("indexes lenient warnings on hashes the same way", () => {
+    const bytes = hex(`${HEADER_ONE} 0b 01 41 03 00 00 00 00 0c 20 ${asciiHex(MD5_A)} 0b 02 ff 41`);
+    expect(readCollectionDb(bytes, { lenient: true })).toMatchObject({
+      collections: [{ name: "A", hashes: [MD5_A, "\ufffdA"] }],
+      warnings: [
+        { code: "null_hash", offset: 15, collection: 0, hash: null },
+        { code: "unknown_marker", offset: 16, collection: 0, hash: 0 },
+        { code: "invalid_utf8", offset: 52, collection: 0, hash: 1 },
+        { code: "malformed_hash", offset: 50, collection: 0, hash: 1 },
       ],
     });
   });
 
-  it("counts null hashes in a hash's position", () => {
-    const bytes = hex(`${HEADER_ONE} 0b 01 41 02 00 00 00 00 0b 03 61 62 63`);
-    expect(readCollectionDb(bytes)).toMatchObject({
-      collections: [{ name: "A", hashes: ["abc"] }],
-      warnings: [
-        { code: "null_hash", offset: 15, hash: 0 },
-        { code: "malformed_hash", offset: 16, hash: 1 },
-      ],
-    });
+  it("lists the first 1,000 warnings and counts the rest in omittedWarnings", () => {
+    const nulls = (count: number) =>
+      hex(`${HEADER_ONE} 0b 01 41 ${int32(count)} ${"00 ".repeat(count)}`);
+    const exact = readCollectionDb(nulls(1000));
+    expect(exact.warnings).toHaveLength(1000);
+    expect(exact.omittedWarnings).toBe(0);
+    const over = readCollectionDb(nulls(1003));
+    expect(over.warnings).toHaveLength(1000);
+    expect(over.warnings.at(-1)).toMatchObject({ code: "null_hash", offset: 1014 });
+    expect(over.omittedWarnings).toBe(3);
   });
 
   it("warns about a duplicated uppercase hash twice over", () => {
@@ -268,6 +320,7 @@ describe("readCollectionDb: warnings", () => {
       version: 20150203,
       collections: [],
       warnings: [{ code: "trailing_bytes", offset: 8, collection: null, hash: null }],
+      omittedWarnings: 0,
     });
   });
 });
@@ -382,9 +435,9 @@ describe("readCollectionDb: input and limits", () => {
   });
 
   it("rejects input over maxBytes before reading it", () => {
-    const tv2 = hex(TV2_FARM);
-    expect(readCollectionDb(tv2, { maxBytes: 86 }).collections).toHaveLength(1);
-    expect(readError(tv2, { maxBytes: 85 })).toMatchObject({
+    const tv4 = hex(TV4_LONG_NAME);
+    expect(readCollectionDb(tv4, { maxBytes: 215 }).collections).toHaveLength(1);
+    expect(readError(tv4, { maxBytes: 214 })).toMatchObject({
       code: "too_large",
       offset: null,
       collection: null,
@@ -392,6 +445,79 @@ describe("readCollectionDb: input and limits", () => {
     });
     // Too large wins over garbage: nothing is read.
     expect(readError(hex(TV6_BAD_MARKER), { maxBytes: 8 }).code).toBe("too_large");
+  });
+
+  it("caps collections plus hashes at maxBytes / 34, before reading the records", () => {
+    // TV2 is 1 collection and 2 hashes: 3 entries, which 102 bytes allow and 101 don't.
+    const tv2 = hex(TV2_FARM);
+    expect(readCollectionDb(tv2, { maxBytes: 102 }).collections).toHaveLength(1);
+    expect(readError(tv2, { maxBytes: 101 })).toMatchObject({
+      code: "too_large",
+      offset: 14,
+      collection: 0,
+      hash: null,
+    });
+    // Three null-named empty collections: the collection count alone passes 2.
+    const three = hex(`bb 77 33 01 03 00 00 00 ${"00 00 00 00 00 ".repeat(3)}`);
+    expect(readCollectionDb(three, { maxBytes: 102 }).collections).toHaveLength(3);
+    expect(readError(three, { maxBytes: 101 })).toMatchObject({
+      code: "too_large",
+      offset: 4,
+      collection: null,
+    });
+    // Counts add up across collections: 2 collections holding a null hash each are 4 entries,
+    // one over what 102 bytes allow, so the second hash count throws.
+    const spread = hex(`${HEADER_TWO} 00 01 00 00 00 00  00 01 00 00 00 00`);
+    expect(readCollectionDb(spread, { maxBytes: 136 }).collections).toHaveLength(2);
+    expect(readError(spread, { maxBytes: 102 })).toMatchObject({
+      code: "too_large",
+      offset: 15,
+      collection: 1,
+    });
+  });
+
+  it("checks a count against the bytes left before the entry cap", () => {
+    // 2 collections can't fit in 5 bytes: bad_count, even though 2 entries also pass the cap.
+    const bytes = hex(`${HEADER_TWO} 00 00 00 00 00`);
+    expect(readError(bytes, { maxBytes: 34 }).code).toBe("bad_count");
+  });
+
+  it("reads 64 MiB of tiny entries without building them: too_large, straight from the counts", () => {
+    const size = MAX_COLLECTION_DB_BYTES;
+    // One collection named "" holding a null hash (0x00) in every byte left.
+    const nullHashes = new Uint8Array(size);
+    nullHashes.set(hex(`bb 77 33 01 01 00 00 00 0b 00 ${int32(size - 14)}`));
+    // The same collection holding empty hashes (0b 00).
+    const emptyHashes = new Uint8Array(size);
+    emptyHashes.set(hex(`bb 77 33 01 01 00 00 00 0b 00 ${int32((size - 14) / 2)}`));
+    new Uint16Array(emptyHashes.buffer, 14).fill(0x000b);
+    expect(compactHex(emptyHashes.subarray(14, 18))).toBe("0b000b00");
+    // Null-named empty collections (00 00 00 00 00) filling the file.
+    const count = Math.floor((size - 8) / 5);
+    const emptyCollections = new Uint8Array(8 + count * 5);
+    emptyCollections.set(hex(`bb 77 33 01 ${int32(count)}`));
+    const started = performance.now();
+    expect(readError(nullHashes)).toMatchObject({ code: "too_large", offset: 10, collection: 0 });
+    expect(readError(emptyHashes)).toMatchObject({ code: "too_large", offset: 10, collection: 0 });
+    expect(readError(emptyCollections)).toMatchObject({ code: "too_large", offset: 4 });
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+
+  it("reads right up to the default cap of 1,973,790 entries, keeping 1,000 warnings", () => {
+    const cap = Math.floor(MAX_COLLECTION_DB_BYTES / 34);
+    expect(cap).toBe(1_973_790);
+    // One collection named "" (an empty_name warning) and cap - 1 null hashes: cap entries.
+    const file = (nullHashes: number) => {
+      const bytes = new Uint8Array(14 + nullHashes);
+      bytes.set(hex(`bb 77 33 01 01 00 00 00 0b 00 ${int32(nullHashes)}`));
+      return bytes;
+    };
+    const read = readCollectionDb(file(cap - 1));
+    expect(read.collections).toEqual([{ name: "", hashes: [] }]);
+    expect(read.warnings).toHaveLength(1000);
+    expect(read.warnings[0]?.code).toBe("empty_name");
+    expect(read.omittedWarnings).toBe(cap - 1000);
+    expect(readError(file(cap))).toMatchObject({ code: "too_large", offset: 10, collection: 0 });
   });
 
   it("defaults maxBytes to 64 MiB", () => {

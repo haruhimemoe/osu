@@ -31,22 +31,18 @@ import { writeCollectionDb } from "./write.js";
 const LAZER_IMPORT_CFG = "osu!.import.cfg";
 const CONTROL_CHARACTER = /\p{Cc}/u;
 
-// Appends hashes the list doesn't hold yet (exact match), in order.
-const appendHashes = (existing: readonly string[], additions: Iterable<string>) => {
-  const hashes = [...existing];
-  const present = new Set(existing);
-  let added = 0;
-  let alreadyPresent = 0;
-  for (const hash of additions) {
-    if (present.has(hash)) {
-      alreadyPresent++;
-    } else {
-      present.add(hash);
-      hashes.push(hash);
-      added++;
-    }
-  }
-  return { hashes, added, alreadyPresent };
+// A collection's hashes copied once for editing, with a set of them for exact-match lookups.
+type WorkingList = { hashes: string[]; present: Set<string> };
+const workingList = (existing: readonly string[]): WorkingList => ({
+  hashes: [...existing],
+  present: new Set(existing),
+});
+// Appends the hash unless the list holds it already (exact match); true when it was added.
+const append = (list: WorkingList, hash: string): boolean => {
+  if (list.present.has(hash)) return false;
+  list.present.add(hash);
+  list.hashes.push(hash);
+  return true;
 };
 
 // Throws unless `name` is fit to be a new collection's name.
@@ -136,20 +132,23 @@ export const collectionHashesFor = <T extends { checksum?: string | null | undef
  * @param name {string} the collection, matched exactly (case counts, nothing is trimmed); the first
  *        of duplicate names wins. A new name must be non-empty, have no outer whitespace, control
  *        characters or lone surrogates, and be at most MAX_COLLECTION_NAME_BYTES (127) UTF-8 bytes
- * @param hashes {Iterable<string>} MD5s to add; each must be 32 hex characters (any case)
+ * @param hashes {Iterable<string>} MD5s to add, as an array or other iterable (a single string is a
+ *        TypeError, not a list of characters); each must be 32 hex characters (any case)
  * @returns {{ db: CollectionDb; index: number; created: boolean; added: number;
  *          alreadyPresent: number; similarName: string | null }} a new database with the hashes
  *          appended (or the collection created at the end), where the collection is, how many
  *          hashes were added and how many were skipped because the collection already held them
  *          (repeats in `hashes` included), and, only when it created the collection, an existing
  *          name equal to `name` apart from case, outer whitespace or Unicode form
+ * @throws {TypeError} when `hashes` is a string
  * @throws {CollectionDbError} invalid_name or name_too_long for a bad new name, then invalid_hash
  *         with the hash's position in `hashes`
  */
 export const addToCollection = (
   db: CollectionDb,
   name: string,
-  hashes: Iterable<string>,
+  // `& object` rules out a bare string, which is iterable but would add one character at a time.
+  hashes: Iterable<string> & object,
 ): {
   db: CollectionDb;
   index: number;
@@ -158,6 +157,9 @@ export const addToCollection = (
   alreadyPresent: number;
   similarName: string | null;
 } => {
+  if (typeof hashes === "string") {
+    throw new TypeError("addToCollection: hashes must be a list, such as [hash], not one string");
+  }
   const collections = [...db.collections];
   const found = collections.findIndex((collection) => collection.name === name);
   const created = found === -1;
@@ -183,15 +185,16 @@ export const addToCollection = (
   }
 
   const index = created ? collections.length : found;
-  const existing = created ? [] : (collections[found] as OsuCollection).hashes;
-  const result = appendHashes(existing, additions);
-  collections[index] = { name, hashes: result.hashes };
+  const list = workingList(created ? [] : (collections[found] as OsuCollection).hashes);
+  let added = 0;
+  for (const hash of additions) if (append(list, hash)) added++;
+  collections[index] = { name, hashes: list.hashes };
   return {
     db: { version: db.version, collections },
     index,
     created,
-    added: result.added,
-    alreadyPresent: result.alreadyPresent,
+    added,
+    alreadyPresent: additions.length - added,
     similarName,
   };
 };
@@ -205,7 +208,9 @@ export const addToCollection = (
  *          the target collection with the same exact name or was created at the end (two
  *          same-named source collections land in one), and how many collections were created and
  *          how many source hashes were added, already there, or skipped as not 32 hex characters.
- *          These are lazer's import rules, except that no collection gets a duplicate hash.
+ *          These are lazer's import rules, except that no collection gets a duplicate hash. It
+ *          takes time in proportion to the hashes involved, however often a name repeats.
+ * @throws {TypeError} when a source collection isn't { name, hashes: [...] }
  */
 export const mergeCollections = (
   target: CollectionDb,
@@ -222,30 +227,43 @@ export const mergeCollections = (
   collections.forEach((collection, index) => {
     if (!byName.has(collection.name)) byName.set(collection.name, index);
   });
+  // Each collection the merge touches is copied once and then appended to in place, so a name
+  // that repeats in the source doesn't copy its growing list again every time.
+  const touched = new Map<number, WorkingList>();
   let created = 0;
   let added = 0;
   let alreadyPresent = 0;
   let invalid = 0;
 
-  for (const incoming of source.collections) {
-    const valid: string[] = [];
-    for (const value of incoming.hashes) {
-      const hash = normalizeHash(value);
-      if (hash === null) invalid++;
-      else valid.push(hash);
+  source.collections.forEach((incoming: OsuCollection | null, c) => {
+    if (typeof incoming !== "object" || incoming === null || !Array.isArray(incoming.hashes)) {
+      throw new TypeError(
+        `mergeCollections: source collection ${c} must be { name, hashes: [...] }`,
+      );
     }
     let index = byName.get(incoming.name);
     if (index === undefined) {
       index = collections.length;
       byName.set(incoming.name, index);
+      collections.push({ name: incoming.name, hashes: [] });
       created++;
     }
-    const result = appendHashes(collections[index]?.hashes ?? [], valid);
-    collections[index] = { name: incoming.name, hashes: result.hashes };
-    added += result.added;
-    alreadyPresent += result.alreadyPresent;
-  }
+    let list = touched.get(index);
+    if (list === undefined) {
+      list = workingList((collections[index] as OsuCollection).hashes);
+      touched.set(index, list);
+    }
+    for (const value of incoming.hashes) {
+      const hash = normalizeHash(value);
+      if (hash === null) invalid++;
+      else if (append(list, hash)) added++;
+      else alreadyPresent++;
+    }
+  });
 
+  for (const [index, list] of touched) {
+    collections[index] = { name: (collections[index] as OsuCollection).name, hashes: list.hashes };
+  }
   return { db: { version: target.version, collections }, created, added, alreadyPresent, invalid };
 };
 

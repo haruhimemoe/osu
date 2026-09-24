@@ -61,6 +61,11 @@ try {
   assert.equal(toHex(bytes), TV2);
   const read = collections.readCollectionDb(bytes);
   assert.deepEqual({ version: read.version, collections: read.collections }, db);
+  assert.equal(read.omittedWarnings, 0);
+  assert.throws(
+    () => collections.addToCollection(read, "Farm", db.collections[0].hashes[0]),
+    TypeError,
+  );
   const added = collections.addToCollection(read, "練習", read.collections[0].hashes);
   assert.equal(added.created, true);
   const files = collections.lazerImportFiles(added.db);

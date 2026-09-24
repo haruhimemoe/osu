@@ -2,8 +2,9 @@
  * @file tests/collections-edit.test.ts
  * @desc The editing helpers: createCollectionDb, normalizeHash (and its agreement with
  *       BeatmapMeta's checksum), collectionHashesFor, addToCollection (exact names, new-name
- *       rules, no duplicates, similar names), mergeCollections (lazer's import rules),
- *       lazerImportFiles, and none of them touching their inputs.
+ *       rules, no duplicates, similar names, no bare string for hashes), mergeCollections (lazer's
+ *       import rules, in linear time when a name repeats), lazerImportFiles (with a lazer name
+ *       used as typed), and none of them touching their inputs.
  * @author David @dvhsh (https://dvh.sh)
  * @created Thu Sep 24, 2026
  * @modified Thu Sep 24, 2026
@@ -284,6 +285,16 @@ describe("addToCollection", () => {
     expect(result).toMatchObject({ created: false, index: 1, added: 1 });
   });
 
+  it("throws a TypeError for one hash string passed instead of a list, naming no hash", () => {
+    const error = thrown(() => addToCollection(farm(), "Farm", MD5_ABC as unknown as string[]));
+    expect(error).toBeInstanceOf(TypeError);
+    expect((error as Error).message).not.toContain(MD5_ABC);
+    // @ts-expect-error a single hash isn't a list of hashes
+    expect(() => addToCollection(farm(), "New", MD5_ABC)).toThrow(TypeError);
+    // Any other iterable is still fine.
+    expect(addToCollection(farm(), "Farm", new Set([MD5_ABC])).added).toBe(1);
+  });
+
   it("checks the new name before the hashes", () => {
     expect(editError(() => addToCollection(farm(), " x", ["nope"])).code).toBe("invalid_name");
   });
@@ -385,6 +396,48 @@ describe("mergeCollections", () => {
     expect(result.db.version).toBe(20210520);
   });
 
+  it("throws a TypeError for a source collection whose hashes aren't an array", () => {
+    for (const collection of [{ name: "Farm", hashes: MD5_ABC }, { name: "Farm" }, null]) {
+      const source = { version: 1, collections: [collection] } as unknown as CollectionDb;
+      const error = thrown(() => mergeCollections(farm(), source));
+      expect(error).toBeInstanceOf(TypeError);
+      expect((error as Error).message).not.toContain(MD5_ABC);
+    }
+  });
+
+  it("stays linear when the source repeats one name many times", () => {
+    const hash = (i: number) => i.toString(16).padStart(32, "0");
+    // 40,000 collections named "a", one hash each.
+    const repeated = {
+      version: 1,
+      collections: Array.from({ length: 40_000 }, (_, i) => ({ name: "a", hashes: [hash(i)] })),
+    };
+    // One "a" of 100,000 hashes, then 2,000 empty collections also named "a".
+    const bigThenEmpty = {
+      version: 1,
+      collections: [
+        { name: "a", hashes: Array.from({ length: 100_000 }, (_, i) => hash(i)) },
+        ...Array.from({ length: 2_000 }, () => ({ name: "a", hashes: [] })),
+      ],
+    };
+    const started = performance.now();
+    const first = mergeCollections(farm(), repeated);
+    const second = mergeCollections(first.db, bigThenEmpty);
+    expect(performance.now() - started).toBeLessThan(1500);
+    expect(first).toMatchObject({ created: 1, added: 40_000, alreadyPresent: 0, invalid: 0 });
+    expect(second).toMatchObject({ created: 0, added: 60_000, alreadyPresent: 40_000 });
+    expect(second.db.collections.map((collection) => collection.name)).toEqual([
+      "Farm",
+      "Tourney",
+      "a",
+    ]);
+    expect(second.db.collections[2]?.hashes).toEqual(
+      Array.from({ length: 100_000 }, (_, i) => hash(i)),
+    );
+    // The target's own lists come through untouched.
+    expect(second.db.collections[0]).toBe(first.db.collections[0]);
+  });
+
   it("leaves its inputs untouched", () => {
     const target = deepFreeze(farm());
     const source = deepFreeze({
@@ -410,6 +463,20 @@ describe("lazerImportFiles", () => {
     expect(files[1]?.bytes.byteLength).toBe(0);
     // Lazer takes a folder holding a file named osu!.*.cfg as a stable install.
     expect(files[1]?.path).toMatch(/^osu!\..+\.cfg$/);
+  });
+
+  it("takes a lazer collection's name exactly as typed, even one addToCollection wouldn't create", () => {
+    // The README's lazer delta: the typed name as is, so it matches lazer's collection exactly.
+    for (const name of ["Farm ", "my\tfarm", "練".repeat(43)]) {
+      expect(editError(() => addToCollection(createCollectionDb(), name, [MD5_A])).code).toMatch(
+        /^(invalid_name|name_too_long)$/,
+      );
+      const delta = { ...createCollectionDb(), collections: [{ name, hashes: [MD5_A] }] };
+      const [file] = lazerImportFiles(delta);
+      expect(readCollectionDb(file?.bytes ?? new Uint8Array()).collections).toEqual([
+        { name, hashes: [MD5_A] },
+      ]);
+    }
   });
 
   it("throws the writer's errors", () => {

@@ -13,7 +13,10 @@ export type OsuCollection = { name: string; hashes: readonly string[] };
 /** A collection.db. `version` is stable's build date (YYYYMMDD); no client reads it. */
 export type CollectionDb = { version: number; collections: readonly OsuCollection[] };
 
-/** Largest collection.db read or written by default: 64 MiB, about 1.9 million hashes. */
+/**
+ * Largest collection.db read or written by default: 64 MiB, about 1.9 million hashes. The reader
+ * also caps collections plus hashes at maxBytes / 34 (1,973,790 at this default).
+ */
 export const MAX_COLLECTION_DB_BYTES = 64 * 1024 * 1024;
 /**
  * Longest new collection name, in UTF-8 bytes: the longest whose length fits in one byte, so

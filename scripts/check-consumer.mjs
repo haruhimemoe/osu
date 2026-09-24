@@ -73,12 +73,17 @@ const collectionDb: CollectionDb = addToCollection(createCollectionDb(), "Tourne
 const bytes = writeCollectionDb(collectionDb);
 const blob = new Blob([bytes]); // only typechecks for a Uint8Array<ArrayBuffer>
 const read: CollectionDbRead = readCollectionDb(new Uint8Array(await blob.arrayBuffer()));
-if (read.collections[0]?.hashes[0] !== meta.checksum) throw new Error("collections");
+if (read.collections[0]?.hashes[0] !== meta.checksum || read.omittedWarnings !== 0) throw new Error("collections");
 if (lazerImportFiles(read).length !== 2) throw new Error("lazer files");
+// The README's lazer delta: a name exactly as typed, which addToCollection wouldn't create.
+const lazer = lazerImportFiles({ ...createCollectionDb(), collections: [{ name: "Farm ", hashes }] });
+if (readCollectionDb(lazer[0]!.bytes).collections[0]?.name !== "Farm ") throw new Error("lazer name");
+// @ts-expect-error one hash string isn't a list of hashes (it would typecheck if types were any)
+const oneString = () => addToCollection(collectionDb, "Farm", "a5b99395a42bd55bc5eb1d2411cbdf8b");
 // @ts-expect-error a CollectionDb's collections are readonly (they wouldn't be if types were any)
 read.collections.push({ name: "x", hashes: [] });
 const dbCode: CollectionDbErrorCode = new CollectionDbError("truncated", "x", { offset: 0 }).code;
-void client; void inferred; void bad; void code; void dbCode;
+void client; void inferred; void bad; void code; void dbCode; void oneString;
 console.log("consumer: ok");
 `,
   );
