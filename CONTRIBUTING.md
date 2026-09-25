@@ -22,7 +22,7 @@ Read [AGENTS.md](./AGENTS.md) first, especially the `/shapes` split and "Public 
    bun run check && bun run typecheck && bun run test:coverage && bun run test:dist
    ```
 
-   `bun run check:fix` applies Biome's fixes and formatting. Coverage must stay at 95% or more. If your change touches the zod peer range, also run `bun run check:consumer 4.0.16` (needs the npm registry).
+   `bun run check:fix` applies Biome's fixes and formatting. Coverage must stay at 95% or more. If your change touches the zod peer range or the package's `exports`, also run `bun run check:consumer 4.0.16` (needs the npm registry).
 4. Add a line to `CHANGELOG.md` under `## [Unreleased]`, in the right [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) section (Added, Changed, Deprecated, Removed, Fixed, Security). Adding or removing a public export is a semver decision, so call it out.
 5. If you changed an export, option, default or error, update `README.md` and `llms.txt` to match.
 6. Open a pull request against `main`.

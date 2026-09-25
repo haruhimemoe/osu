@@ -40,7 +40,9 @@ Keep `createOsuClient` on a server: it holds the OAuth client secret. Browser co
 - [osu! API v2 documentation](https://osu.ppy.sh/docs/): endpoints, scopes and the terms of use (at most 60 requests a minute).
 - [@haruhimemoe/compliance](https://github.com/haruhimemoe/compliance): judges an extended beatmapset with `factsFromOsuBeatmapset`.
 - [@haruhimemoe/hinai](https://github.com/haruhimemoe/hinai): a client for the hinai beatmap mirror that returns `BeatmapMeta` from these shapes.
-- [haruhime.moe](https://haruhime.moe): the osu! tournament tools this package is built for.
+- [haruhime.moe](https://www.haruhime.moe): the osu! tournament tools this package is built for.
+- [packs](https://packs.haruhime.moe): osu! beatmap packs for tournament hosts. Uses this package.
+- [pools](https://pools.haruhime.moe): osu! mappools for tournament hosts, in beta. Uses this package.
 
 ## Optional
 

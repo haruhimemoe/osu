@@ -1,6 +1,8 @@
+<p align="center"><a href="https://github.com/haruhimemoe/osu"><picture><source media="(prefers-color-scheme: light)" srcset="https://www.haruhime.moe/brand/repos/osu-banner-on-light.svg"><img alt="@haruhimemoe/osu" src="https://www.haruhime.moe/brand/repos/osu-banner.svg" width="640"></picture></a></p>
+
 # @haruhimemoe/osu
 
-osu! API v2 for the haruhime.moe tools (packs, pools, sheets), in three parts:
+osu! API v2 for the haruhime.moe tools: [packs](https://packs.haruhime.moe), [pools](https://pools.haruhime.moe) (in beta) and, soon, sheets. It comes in three parts:
 
 - **`@haruhimemoe/osu/shapes`**: the data. Zod schemas and types for a difficulty (`BeatmapMeta` and osu!'s beatmap row), a beatmapset's content fields, and the signed-in user, plus osu! links and the sign-in endpoints. No client code, so it's safe in browsers and in other packages that read osu!-shaped data, like mirrors.
 - **`@haruhimemoe/osu/collections`**: reads and writes osu!stable's `collection.db`, so a web page can add maps to a player's collections: stable takes the edited file back, and lazer imports it through its setup wizard. Safe in browsers, and it doesn't load zod.
