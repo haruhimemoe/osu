@@ -46,7 +46,7 @@ const { sets } = await osu.getBeatmapsets([129891]);
 console.log(sets.get(129891)?.availability.download_disabled);
 ```
 
-Keep the client on the server. It holds your client secret. Browsers use `/shapes` and ask your server.
+Keep the client on the server. It holds your client secret. Browser code imports only `/shapes` and `/collections`, and asks your server for anything from osu!.
 
 The client uses the client credentials grant with scope `public`. It asks for a token on the first call, shares that request between concurrent calls, and reuses the token until a minute before it expires. A 401 drops the token and retries the call once with a fresh one.
 
@@ -378,5 +378,7 @@ Each warning is `{ code, offset, collection, hash }`. `hash` is the index into t
 MIT. See [LICENSE](LICENSE). Not affiliated with osu! or ppy Pty Ltd. Using the osu! API means following its [terms of use](https://osu.ppy.sh/docs/#terms-of-use).
 
 ## Contributing
+
+Questions and feedback are welcome on the haruhime.moe [Discord server](https://discord.gg/bKy9kjMV4y). Bugs and ideas go in [issues](https://github.com/haruhimemoe/osu/issues).
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for dev setup and how to submit a change, [CHANGELOG.md](CHANGELOG.md) for release history, and [SECURITY.md](SECURITY.md) to report a vulnerability.
