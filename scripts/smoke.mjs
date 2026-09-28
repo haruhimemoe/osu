@@ -1,18 +1,19 @@
 /**
  * @file scripts/smoke.mjs
  * @desc Imports the built package the way apps will: every entry point, the client talking to a
- *       stub fetch (token, then beatmaps), /shapes without the client, and /collections writing
- *       and reading TV2 with Node's Buffer hidden, as in a browser. Run by `bun run test:dist`
- *       after a build.
+ *       stub fetch (token, then beatmaps), /shapes without the client, /collections writing and
+ *       reading TV2 with Node's Buffer hidden, as in a browser, and /format. Run by
+ *       `bun run test:dist` after a build.
  * @author David @dvhsh (https://dvh.sh)
  * @created Wed Sep 23, 2026
- * @modified Thu Sep 24, 2026
+ * @modified Mon Sep 28, 2026
  */
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import * as collections from "../dist/collections/index.js";
-import { createOsuClient, readCollectionDb } from "../dist/index.js";
+import * as format from "../dist/format/index.js";
+import { createOsuClient, formatStars, readCollectionDb } from "../dist/index.js";
 import * as shapes from "../dist/shapes/index.js";
 
 const fixture = JSON.parse(
@@ -76,4 +77,8 @@ try {
 } finally {
   Object.defineProperty(globalThis, "Buffer", bufferProperty);
 }
+assert.equal(formatStars, format.formatStars, "the root re-exports /format");
+assert.equal(format.formatDuration(258), "4:18");
+assert.equal(format.formatRange(4.5, 6.2, format.formatStars), "4.50–6.20");
+assert.equal("createOsuClient" in format, false, "/format has no client");
 console.log("smoke: ok");

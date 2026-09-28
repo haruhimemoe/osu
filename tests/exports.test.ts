@@ -1,8 +1,10 @@
 /**
  * @file tests/exports.test.ts
  * @desc The public surface of every entry point, so an accidental export or removal shows up in
- *       review as a semver question; /shapes never grows client code, and /collections stays a
- *       browser-safe codec that imports nothing at runtime from outside src/collections/.
+ *       review as a semver question; /shapes never grows client code, /collections stays a
+ *       browser-safe codec that imports nothing at runtime from outside src/collections/, and
+ *       /format holds only formatters that import nothing. Type exports are pinned in
+ *       tests/types.test.ts.
  * @author David @dvhsh (https://dvh.sh)
  * @created Wed Sep 23, 2026
  * @modified Mon Sep 28, 2026
@@ -11,6 +13,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { expect, it } from "vitest";
 import * as collections from "../src/collections/index.js";
+import * as format from "../src/format/index.js";
 import * as api from "../src/index.js";
 import * as shapes from "../src/shapes/index.js";
 
@@ -39,6 +42,13 @@ it("exports the documented runtime API", () => {
       "coverUrl",
       "createCollectionDb",
       "createOsuClient",
+      "formatBpm",
+      "formatBytes",
+      "formatDuration",
+      "formatLongDuration",
+      "formatRange",
+      "formatStars",
+      "formatStat",
       "isExtendedBeatmapset",
       "lazerImportFiles",
       "mergeCollections",
@@ -61,7 +71,7 @@ it("keeps the client out of /shapes", () => {
   expect(Object.keys(shapes)).not.toContain("createOsuClient");
   expect(
     Object.keys(api)
-      .filter((name) => !(name in shapes) && !(name in collections))
+      .filter((name) => !(name in shapes) && !(name in collections) && !(name in format))
       .sort(),
   ).toEqual([
     "BEATMAPSET_FALLBACK_LIMIT",
@@ -98,20 +108,14 @@ it("keeps /collections to the collection.db API: no client, no shapes", () => {
   expect(Object.keys(collections).filter((name) => name in shapes)).toEqual([]);
 });
 
-it("keeps src/collections/ free of outside runtime imports and of Node APIs", () => {
-  const folder = new URL("../src/collections/", import.meta.url);
-  const files = readdirSync(folder).sort();
-  expect(files).toEqual([
-    "cursor.ts",
-    "edit.ts",
-    "errors.ts",
-    "index.ts",
-    "model.ts",
-    "read.ts",
-    "write.ts",
-  ]);
+/**
+ * Scans a folder that must stay browser code: each file may load only its siblings at runtime,
+ * with no side-effect imports and no Node APIs. Returns each file's runtime imports.
+ */
+const scanBrowserFolder = (path: string): Map<string, string[]> => {
+  const folder = new URL(path, import.meta.url);
   const runtimeImports = new Map<string, string[]>();
-  for (const file of files) {
+  for (const file of readdirSync(folder).sort()) {
     // Comments may mention anything; only code counts.
     const code = readFileSync(new URL(file, folder), "utf8")
       .replace(/\/\*[\s\S]*?\*\//g, "")
@@ -130,6 +134,20 @@ it("keeps src/collections/ free of outside runtime imports and of Node APIs", ()
       /\bimport\s*\(|\brequire\s*\(|\bBuffer\b|\bprocess\b|node:/,
     );
   }
+  return runtimeImports;
+};
+
+it("keeps src/collections/ free of outside runtime imports and of Node APIs", () => {
+  const runtimeImports = scanBrowserFolder("../src/collections/");
+  expect([...runtimeImports.keys()]).toEqual([
+    "cursor.ts",
+    "edit.ts",
+    "errors.ts",
+    "index.ts",
+    "model.ts",
+    "read.ts",
+    "write.ts",
+  ]);
   // The scan sees the entry's re-exports, so it isn't passing by reading nothing.
   expect(runtimeImports.get("index.ts")?.sort()).toEqual([
     "./edit.js",
@@ -138,4 +156,18 @@ it("keeps src/collections/ free of outside runtime imports and of Node APIs", ()
     "./read.js",
     "./write.js",
   ]);
+});
+
+it("keeps /format to formatters that import nothing", () => {
+  expect(Object.keys(format).sort()).toEqual([
+    "formatBpm",
+    "formatBytes",
+    "formatDuration",
+    "formatLongDuration",
+    "formatRange",
+    "formatStars",
+    "formatStat",
+  ]);
+  expect(Object.keys(format).filter((name) => name in shapes || name in collections)).toEqual([]);
+  expect(scanBrowserFolder("../src/format/")).toEqual(new Map([["index.ts", []]]));
 });

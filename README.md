@@ -2,10 +2,11 @@
 
 # @haruhimemoe/osu
 
-osu! API v2 for the haruhime.moe tools: [packs](https://packs.haruhime.moe), [pools](https://pools.haruhime.moe) (in beta) and, soon, sheets. It comes in three parts:
+osu! API v2 for the haruhime.moe tools: [packs](https://packs.haruhime.moe), [pools](https://pools.haruhime.moe) (in beta) and, soon, sheets. It comes in four parts:
 
 - **`@haruhimemoe/osu/shapes`**: the data. Zod schemas and types for a difficulty (`BeatmapMeta` and osu!'s beatmap row), a beatmapset's content fields, and the signed-in user, plus osu! links and the sign-in endpoints. No client code, so it's safe in browsers and in other packages that read osu!-shaped data, like mirrors.
 - **`@haruhimemoe/osu/collections`**: reads and writes osu!stable's `collection.db`, so a web page can add maps to a player's collections: stable takes the edited file back, and lazer imports it through its setup wizard. Safe in browsers, and it doesn't load zod.
+- **`@haruhimemoe/osu/format`**: display text for beatmap numbers: length as `m:ss`, star rating to two decimals, BPM, CS/AR/OD/HP, file sizes and ranges. Pure functions, safe in browsers, no zod.
 - **`@haruhimemoe/osu`**: everything above, plus `createOsuClient` for servers. It caches the client-credentials token, sends your User-Agent, and has a hook for a shared rate budget. It fetches beatmaps, beatmapsets and star ratings with mods.
 
 ## Install
@@ -46,7 +47,7 @@ const { sets } = await osu.getBeatmapsets([129891]);
 console.log(sets.get(129891)?.availability.download_disabled);
 ```
 
-Keep the client on the server. It holds your client secret. Browser code imports only `/shapes` and `/collections`, and asks your server for anything from osu!.
+Keep the client on the server. It holds your client secret. Browser code imports only `/shapes`, `/collections` and `/format`, and asks your server for anything from osu!.
 
 The client uses the client credentials grant with scope `public`. It asks for a token on the first call, shares that request between concurrent calls, and reuses the token until a minute before it expires (or halfway through its life, for a token that lives under two minutes). A 401 drops the token and retries the call once with a fresh one. Calls that get a 401 at the same time share one fresh token.
 
@@ -144,7 +145,7 @@ await osu.getStarRating(129891, ["HD"], { beforeCall });
 | `OSU_BEATMAPS_BATCH_LIMIT`, `OSU_BEATMAPSET_FALLBACK_LIMIT`, `OSU_TIMEOUT_MS` | 50 ids per `/beatmaps` call, the default `fallbackLimit` (10), the default `timeoutMs` (10,000). |
 | `BEATMAPSET_FALLBACK_LIMIT` | Deprecated: the old name of `OSU_BEATMAPSET_FALLBACK_LIMIT`, same value. |
 
-The root entry point also re-exports everything in `/shapes` and `/collections`.
+The root entry point also re-exports everything in `/shapes`, `/collections` and `/format`.
 
 ## Shapes
 
@@ -367,13 +368,45 @@ Each warning is `{ code, offset, collection, hash }`. `hash` is the index into t
 | `CollectionDbError`, `CollectionDbErrorCode` | The error, and its `code` values. `new CollectionDbError(code, message, { offset, collection, hash })` builds one, for tests. |
 | `MAX_COLLECTION_DB_BYTES`, `MAX_COLLECTION_NAME_BYTES`, `DEFAULT_COLLECTION_DB_VERSION`, `COLLECTION_DB_FILENAME` | 64 MiB, 127, 20150203, and `"collection.db"`. |
 
+## Format
+
+`@haruhimemoe/osu/format` turns beatmap numbers into the text packs and pools show. The functions are pure and import nothing, not even zod, so they run anywhere.
+
+```ts
+import { formatBpm, formatDuration, formatRange, formatStars, formatStat } from "@haruhimemoe/osu/format";
+import type { BeatmapMeta } from "@haruhimemoe/osu/shapes";
+
+// "5.23★ · 4:18 · 222 BPM · AR 9.3"
+export const stats = (meta: BeatmapMeta) =>
+  [
+    `${formatStars(meta.starRating)}★`,
+    formatDuration(meta.lengthSeconds),
+    `${formatBpm(meta.bpm)} BPM`,
+    `AR ${formatStat(meta.ar)}`,
+  ].join(" · ");
+
+export const starSpan = (low: number, high: number) => formatRange(low, high, formatStars); // "4.50–6.20"
+```
+
+| Function | Returns |
+| --- | --- |
+| `formatDuration(seconds)` | `"m:ss"`, rounded to the second. Minutes don't roll over into hours: `3600` is `"60:00"`. |
+| `formatLongDuration(seconds)` | `"m:ss"` under an hour, `"h:mm:ss"` from an hour up: `3725` is `"1:02:05"`. |
+| `formatStars(stars)` | Two decimals: `"7.81"`, `"5.00"`. |
+| `formatBpm(bpm)` | A whole number: `"222"`. |
+| `formatStat(value)` | CS, AR, OD or HP with at most one decimal and no float noise: `"3.8"`, `"9"`. |
+| `formatBytes(bytes)` | 1024-based `B`, `KB`, `MB` or `GB`, with one decimal under 10: `"512 B"`, `"6.6 MB"`, `"15 GB"`. |
+| `formatRange(low, high, format)` | Both ends through `format`, joined by an en dash (`"4.50–6.20"`), or one value when both ends read the same. |
+
+They don't check their input. Pass finite numbers of zero or more: a `NaN` shows up as `NaN` in the text.
+
 ## Compatibility
 
 - **Node** 22.12 or later. CI runs the built package on Node 22.12 and 24.
 - **Bun** runs it too. CI tests on Node only.
-- **Browsers:** import only `@haruhimemoe/osu/shapes` and `@haruhimemoe/osu/collections`. Keep `createOsuClient` on a server, since it holds your client secret. The client uses web-standard APIs (`fetch`, `AbortSignal.timeout`, `URL`) and no Node built-ins. `/collections` uses only `TextEncoder`, `TextDecoder` and `DataView`.
+- **Browsers:** import only `@haruhimemoe/osu/shapes`, `@haruhimemoe/osu/collections` and `@haruhimemoe/osu/format`. Keep `createOsuClient` on a server, since it holds your client secret. The client uses web-standard APIs (`fetch`, `AbortSignal.timeout`, `URL`) and no Node built-ins. `/collections` uses only `TextEncoder`, `TextDecoder` and `DataView`.
 - **`zod`** is a peer dependency, `^4.0.16`. CI checks a consumer against zod 4.0.16 and the newest release.
-- **TypeScript:** your config needs the `DOM` lib or `@types/node`, since the client's types use `URL`, `Response` and `RequestInit`, and zod's own types use `URL`. `moduleResolution` must be `node16`, `nodenext` or `bundler`: `@haruhimemoe/osu/shapes` and `@haruhimemoe/osu/collections` resolve only through the package's `exports` map, which the legacy `node` (`node10`) setting ignores. The `/collections` types use `Uint8Array<ArrayBuffer>`, which needs TypeScript 5.7 or later. The root entry point re-exports `/collections`, so importing anything from `@haruhimemoe/osu`, even just `createOsuClient`, needs TypeScript 5.7 too. On older TypeScript, set `skipLibCheck: true`. `@haruhimemoe/osu/shapes` alone works either way.
+- **TypeScript:** your config needs the `DOM` lib or `@types/node`, since the client's types use `URL`, `Response` and `RequestInit`, and zod's own types use `URL`. `moduleResolution` must be `node16`, `nodenext` or `bundler`: `@haruhimemoe/osu/shapes`, `@haruhimemoe/osu/collections` and `@haruhimemoe/osu/format` resolve only through the package's `exports` map, which the legacy `node` (`node10`) setting ignores. The `/collections` types use `Uint8Array<ArrayBuffer>`, which needs TypeScript 5.7 or later. The root entry point re-exports `/collections`, so importing anything from `@haruhimemoe/osu`, even just `createOsuClient`, needs TypeScript 5.7 too. On older TypeScript, set `skipLibCheck: true`. `@haruhimemoe/osu/shapes` and `@haruhimemoe/osu/format` work either way.
 
 ## License
 

@@ -36,6 +36,10 @@
       "types": "./dist/collections/index.d.ts",
       "default": "./dist/collections/index.js"
     },
+    "./format": {
+      "types": "./dist/format/index.d.ts",
+      "default": "./dist/format/index.js"
+    },
     "./package.json": "./package.json"
   },
   "types": "./dist/index.d.ts",

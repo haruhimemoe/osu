@@ -1,10 +1,10 @@
 # AGENTS.md
 
-`@haruhimemoe/osu`: osu! API v2 shapes (`src/shapes/`, exported alone at `@haruhimemoe/osu/shapes`), a server client (`src/client/`), and a `collection.db` codec (`src/collections/`, exported alone at `@haruhimemoe/osu/collections`). ESM only, TypeScript, zod 4 as a peer dependency.
+`@haruhimemoe/osu`: osu! API v2 shapes (`src/shapes/`, exported alone at `@haruhimemoe/osu/shapes`), a server client (`src/client/`), a `collection.db` codec (`src/collections/`, exported alone at `@haruhimemoe/osu/collections`), and display formatters (`src/format/`, exported alone at `@haruhimemoe/osu/format`). ESM only, TypeScript, zod 4 as a peer dependency.
 
 ## Layout
 
-- `src/index.ts`: the root entry. Re-exports the client, every shape, and `/collections`.
+- `src/index.ts`: the root entry. Re-exports the client, every shape, `/collections` and `/format`.
 - `src/client/index.ts`: the client's public API, re-exported by the root. It lists its exports by name, so the helpers stay private.
 - `src/client/client.ts`: `createOsuClient` (`getBeatmaps`, `getBeatmapsets`, `getStarRating`) and `OsuClient`.
 - `src/client/errors.ts`: `OsuApiError`, its codes, and the Retry-After parser. `src/client/types.ts`: the option and result types.
@@ -21,8 +21,9 @@
 - `src/collections/write.ts`: `writeCollectionDb` and `WriteCollectionDbOptions`.
 - `src/collections/edit.ts`: `createCollectionDb`, `normalizeHash`, `collectionHashesFor`, `addToCollection`, `mergeCollections`, `lazerImportFiles`, and their result types.
 - `src/collections/errors.ts`: `CollectionDbError` and its codes.
+- `src/format/index.ts`: the `/format` entry: `formatDuration`, `formatLongDuration`, `formatStars`, `formatBpm`, `formatStat`, `formatBytes`, `formatRange`. packs and pools had identical copies; the output must stay exactly theirs.
 - `tests/`: Vitest. `tests/exports.test.ts` pins the public API; `tests/fixtures/beatmaps.json` is hand-written in osu!'s shape. `tests/collection-vectors.ts` holds the hand-built `collection.db` byte vectors, as hex, and the `thrown` helper the collections tests share.
-- `scripts/smoke.mjs`: imports the built `dist/` the way apps will (`bun run test:dist`). It runs `/collections` with Node's `Buffer` removed.
+- `scripts/smoke.mjs`: imports the built `dist/` the way apps will (`bun run test:dist`). It runs `/collections` with Node's `Buffer` removed, and `/format`.
 - `scripts/check-consumer.mjs`: packs the package, installs it with a given zod version, then typechecks (DOM lib, no Node types) and runs a strict consumer of every entry point (`bun run check:consumer <zod version>`, needs the npm registry).
 - `.github/workflows/ci.yml`: Biome, typecheck, tests with coverage, and a pack dry run; the dist smoke test on Node 22.12 and 24; the consumer check on zod 4.0.16 and latest.
 - `.github/workflows/release.yml`: publishes to npm when a GitHub release is published. Maintainers only.
@@ -32,6 +33,7 @@
 
 - **`src/shapes/` never imports `src/client/`** or anything that holds secrets or does I/O. Browsers and `@haruhimemoe/hinai` import `/shapes`; `tests/exports.test.ts` and `scripts/smoke.mjs` check the split.
 - **`src/collections/` imports nothing at runtime from outside itself**: not the client, not `/shapes`, not zod. `import type` is fine (it's erased), but `import { type X }` still loads the module under `verbatimModuleSyntax`, so use `import type`. It's browser code: `Uint8Array` in and out, only `TextEncoder`, `TextDecoder` and `DataView`, no `Buffer`, `fs` or other Node APIs. `tests/exports.test.ts` scans the folder for this, and `scripts/smoke.mjs` runs it without `Buffer`.
+- **`src/format/` imports nothing**, at runtime or as types. Its functions are pure and don't check their input, so the text matches what packs and pools showed before the move. `tests/exports.test.ts` scans the folder.
 - **The collections codec is faithful; the helpers are strict.** The reader keeps everything it finds and reports oddities as warnings, and the writer writes what it's given, so a stable-written file round-trips byte for byte. Our rules (lowercase hashes, no duplicates, new-name checks) apply only to new data, in `edit.ts`. Nothing changes its arguments. Build test bytes from hex in `tests/collection-vectors.ts`: `.editorconfig` would mangle a binary fixture, and no third-party `collection.db` (lazer's fixture included) goes in the repo.
 - **Collection code stays bounded on hostile input.** A file is untrusted, and so is a `source` passed to `mergeCollections`. The reader checks every count against the bytes left and against the `maxBytes / 34` entry cap before building anything, keeps at most 1,000 warnings, and allocates nothing per entry that a real file wouldn't. Helpers copy a collection's list once per call, never once per source entry. `tests/collections-read.test.ts` feeds the reader 64 MiB of one- and two-byte entries, and `tests/collections-edit.test.ts` times a merge of 40,000 same-named collections.
 - **Collection errors never carry a name or hash.** Messages and fields hold byte offsets and indexes only, since names can be personal.

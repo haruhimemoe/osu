@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `@haruhimemoe/osu/format`, safe in browsers and free of imports: `formatDuration` (`m:ss`), `formatLongDuration` (`h:mm:ss` from an hour up), `formatStars` (two decimals), `formatBpm`, `formatStat` (CS/AR/OD/HP), `formatBytes` and `formatRange`. packs and pools each had the same copy; the text is unchanged. The root entry point re-exports them. These are new public exports, so the next release is a minor version.
 - `OSU_BEATMAPSET_FALLBACK_LIMIT`, the default `fallbackLimit` (10), named like the client's other constants.
 - Named types for what the collection helpers take and return: `WriteCollectionDbOptions`, `CollectionHashes`, `AddToCollectionResult`, `MergeCollectionsResult` and `LazerImportFile`. The shapes are unchanged.
 

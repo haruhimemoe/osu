@@ -7,7 +7,7 @@
  *       scripts/check-consumer.mjs <zod version> (after `bun run build`). Needs the npm registry.
  * @author David @dvhsh (https://dvh.sh)
  * @created Wed Sep 23, 2026
- * @modified Thu Sep 24, 2026
+ * @modified Mon Sep 28, 2026
  */
 
 import { execFileSync } from "node:child_process";
@@ -57,6 +57,7 @@ try {
 import { createOsuClient, OsuApiError, type OsuApiErrorCode, type OsuClient } from "@haruhimemoe/osu";
 import { type BeatmapMeta, beatmapMetaSchema, isExtendedBeatmapset, osuBeatmapsetSchema, type Ruleset, toBeatmapMeta, osuBeatmapRowSchema, toOsuUser } from "@haruhimemoe/osu/shapes";
 import { addToCollection, type CollectionDb, CollectionDbError, type CollectionDbErrorCode, type CollectionDbRead, collectionHashesFor, createCollectionDb, lazerImportFiles, readCollectionDb, writeCollectionDb } from "@haruhimemoe/osu/collections";
+import { formatBpm, formatDuration, formatRange, formatStars } from "@haruhimemoe/osu/format";
 
 const row = { id: 75, beatmapset_id: 1, mode: "osu", version: "Normal", difficulty_rating: 2.55, cs: 4, ar: 6, accuracy: 6, drain: 6, bpm: 120, total_length: 142, checksum: "a5b99395a42bd55bc5eb1d2411cbdf8b", beatmapset: { artist: "a", title: "t", creator: "c", user_id: 2 } };
 const meta: BeatmapMeta = toBeatmapMeta(osuBeatmapRowSchema.parse(row));
@@ -83,7 +84,11 @@ const oneString = () => addToCollection(collectionDb, "Farm", "a5b99395a42bd55bc
 // @ts-expect-error a CollectionDb's collections are readonly (they wouldn't be if types were any)
 read.collections.push({ name: "x", hashes: [] });
 const dbCode: CollectionDbErrorCode = new CollectionDbError("truncated", "x", { offset: 0 }).code;
-void client; void inferred; void bad; void code; void dbCode; void oneString;
+if (formatRange(meta.starRating, 7.806, formatStars) !== "2.55–7.81") throw new Error("format");
+if (formatDuration(meta.lengthSeconds) !== "2:22" || formatBpm(meta.bpm) !== "120") throw new Error("format");
+// @ts-expect-error a formatter takes a number (it would typecheck if types were any)
+const badStars = () => formatStars("5");
+void client; void inferred; void badStars; void bad; void code; void dbCode; void oneString;
 console.log("consumer: ok");
 `,
   );
