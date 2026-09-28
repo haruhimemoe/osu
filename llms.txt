@@ -21,7 +21,7 @@ Keep `createOsuClient` on a server: it holds the OAuth client secret. Browser co
 
 ## Source
 
-- [src/client.ts](https://github.com/haruhimemoe/osu/blob/main/src/client.ts): `createOsuClient`, `OsuApiError` and the option and result types, with JSDoc on each method.
+- [src/client/client.ts](https://github.com/haruhimemoe/osu/blob/main/src/client/client.ts): `createOsuClient`, with JSDoc on each method. [errors.ts](https://github.com/haruhimemoe/osu/blob/main/src/client/errors.ts) has `OsuApiError`, and [types.ts](https://github.com/haruhimemoe/osu/blob/main/src/client/types.ts) the option and result types.
 - [src/shapes/beatmap.ts](https://github.com/haruhimemoe/osu/blob/main/src/shapes/beatmap.ts): rulesets, `BeatmapMeta`, osu!'s beatmap row and `toBeatmapMeta`.
 - [src/shapes/beatmapset.ts](https://github.com/haruhimemoe/osu/blob/main/src/shapes/beatmapset.ts): beatmapset content fields and `isExtendedBeatmapset`.
 - [src/shapes/user.ts](https://github.com/haruhimemoe/osu/blob/main/src/shapes/user.ts): the `/api/v2/me` schema and `toOsuUser`.

@@ -5,9 +5,9 @@
  *       collection.db reader and writer (also at @haruhimemoe/osu/collections).
  * @author David @dvhsh (https://dvh.sh)
  * @created Wed Sep 23, 2026
- * @modified Thu Sep 24, 2026
+ * @modified Mon Sep 28, 2026
  */
 
-export * from "./client.js";
+export * from "./client/index.js";
 export * from "./collections/index.js";
 export * from "./shapes/index.js";
