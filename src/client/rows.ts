@@ -1,7 +1,8 @@
 /**
  * @file src/client/rows.ts
- * @desc GET /api/v2/beatmaps in batches: asks the caller's budget before each batch, and files each
- *       answered row as accepted or unchecked. getBeatmaps and getBeatmapsets share it.
+ * @desc Id batches (GET /api/v2/beatmaps, or /users): asks the caller's budget before each batch,
+ *       and files each answered row as accepted or unchecked. getBeatmaps, getBeatmapsets and
+ *       getUsers share it.
  * @author David @dvhsh (https://dvh.sh)
  * @created Mon Sep 28, 2026
  * @modified Mon Sep 28, 2026
@@ -17,7 +18,7 @@ const rowIdSchema = z.object({ id: z.number() });
 export type RowFetch<T extends { id: number }> = {
   /** The caller's budget, asked before each batch; false skips it. */
   beforeCall: () => Promise<boolean>;
-  /** One /beatmaps call for up to OSU_BEATMAPS_BATCH_LIMIT ids, returning its raw rows. */
+  /** One /beatmaps (or /users) call for up to OSU_BEATMAPS_BATCH_LIMIT ids, returning its raw rows. */
   fetchBatch: (ids: readonly number[]) => Promise<unknown[]>;
   /** The schema a row must pass. */
   schema: z.ZodType<T>;

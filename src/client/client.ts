@@ -2,7 +2,7 @@
  * @file src/client/client.ts
  * @desc createOsuClient: the osu! API v2 client for servers (client credentials, scope public):
  *       beatmap metadata, beatmapsets with their content fields (with a capped /beatmapsets/{id}
- *       fallback for compact ones), and star ratings with mods. Every request sends your
+ *       fallback for compact ones), star ratings with mods, and users (src/client/users.ts). Every request sends your
  *       User-Agent and gives up after timeoutMs. Every failure talking to osu! is an OsuApiError.
  *       Keep the client secret on the server.
  * @author David @dvhsh (https://dvh.sh)
@@ -32,6 +32,7 @@ import type {
   OsuClientOptions,
   StarRatingOptions,
 } from "./types.js";
+import { createUserLookups } from "./users.js";
 
 const beatmapsResponseSchema = z.object({ beatmaps: z.array(z.unknown()) });
 const attributesResponseSchema = z.object({
@@ -43,8 +44,8 @@ const alwaysCall = async (): Promise<boolean> => true;
  * @function createOsuClient
  * @param options {OsuClientOptions} credentials, User-Agent, and optional base URL, timeout,
  *        fetch and clock
- * @returns {{ getBeatmaps, getBeatmapsets, getStarRating }} the client; create one per process
- *          and reuse it so the token is shared
+ * @returns {{ getBeatmaps, getBeatmapsets, getStarRating, getUser, getUsers }} the client;
+ *          create one per process and reuse it so the token is shared
  * @throws {TypeError} when userAgent is blank or holds anything but printable ASCII, or
  *         credentials given as an object aren't two non-empty strings
  * @throws {RangeError} when timeoutMs isn't an integer from 1 to 2_147_483_647, or baseUrl isn't
@@ -118,6 +119,8 @@ export const createOsuClient = (options: OsuClientOptions) => {
   };
 
   return {
+    ...createUserLookups({ baseUrl, authorized, transport }),
+
     /**
      * @function getBeatmaps
      * @param ids {readonly number[]} difficulty ids (duplicates fine; anything but a positive

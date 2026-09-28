@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-28
+
+### Added
+
+- `getUser(user, { beforeCall, ruleset })` on the client: one user by id (`/api/v2/users/{id}?key=id`) or username (`/api/v2/users/@{name}`), with an optional ruleset, as an `OsuUser`, or null on 404. It rejects with code `"budget"` when `beforeCall` refuses, like `getStarRating`. pools and bb each had their own token and fetch for this.
+- `getUsers(ids, { beforeCall })`: users by id, 50 per `/api/v2/users?ids[]=` call, as `{ found, missing, unchecked }` like `getBeatmaps`.
+- The types `UserOptions`, `UsersOptions` and `UserLookup`. These are new public exports, so this release is a minor version.
+
 ## [0.3.0] - 2026-09-28
 
 ### Added
@@ -54,7 +62,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `createOsuClient` for servers, with `getBeatmaps`, `getBeatmapsets` and `getStarRating`: a cached client-credentials token, a required User-Agent, timeouts, and a `beforeCall` hook for a shared rate budget.
 - `OsuApiError` with a `code`, the HTTP `status` and `retryAfterMs`.
 
-[unreleased]: https://github.com/haruhimemoe/osu/compare/v0.3.0...HEAD
+[unreleased]: https://github.com/haruhimemoe/osu/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/haruhimemoe/osu/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/haruhimemoe/osu/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/haruhimemoe/osu/compare/f89f0042f1d6559740dd995e41a8a59d86c35a6a...v0.2.0
 [0.1.0]: https://github.com/haruhimemoe/osu/tree/f89f0042f1d6559740dd995e41a8a59d86c35a6a

@@ -45,6 +45,9 @@ const stars = await osu.getStarRating(129891, ["HD", "HR"]); // a number, or nul
 
 const { sets } = await osu.getBeatmapsets([129891]);
 console.log(sets.get(129891)?.availability.download_disabled);
+
+const peppy = await osu.getUser("peppy"); // an OsuUser, or null
+const { found: users } = await osu.getUsers([2, 124493]);
 ```
 
 Keep the client on the server. It holds your client secret. Browser code imports only `/shapes`, `/collections` and `/format`, and asks your server for anything from osu!.
@@ -78,16 +81,20 @@ The client uses the client credentials grant with scope `public`. It asks for a 
 
 **`getStarRating(id, mods, { beforeCall })`** asks `POST /api/v2/beatmaps/{id}/attributes` with `mods` as acronyms (`["HD", "HR"]`) and returns osu!'s star rating for the map in its own ruleset. It makes one call (plus the 401 retry). It returns null when osu! answers 404 (no such map) or 422 (mods it won't rate). It rejects with code `"budget"` when `beforeCall` refuses, and throws `RangeError` when `id` isn't a positive safe integer. The no-mod rating already comes with `BeatmapMeta` as `starRating`.
 
+**`getUser(user, { beforeCall, ruleset })`** asks `/api/v2/users/{id}?key=id` for a number, or `/api/v2/users/@{name}` for a string (trimmed; osu! matches names without case, and a name made of digits is still a name). `ruleset` (`"osu"`, `"taiko"`, `"fruits"` or `"mania"`) adds `/{ruleset}` to the path; it only changes which stats osu! sends, not who. It returns an `OsuUser` (`osuId`, `username`, `avatarUrl`, `countryCode`), or null when osu! answers 404. It makes one call (plus the 401 retry), rejects with code `"budget"` when `beforeCall` refuses, and throws `RangeError` for an id that isn't a positive safe integer, a blank name, or an unknown ruleset, before anything is sent. A body without an `id` and `username` is a `"bad_response"`.
+
+**`getUsers(ids, { beforeCall })`** asks `/api/v2/users?ids[]=` 50 ids at a time, after dropping duplicates, and returns `{ found, missing, unchecked }` like `getBeatmaps`: `found` holds `OsuUser` by id, `missing` the ids that aren't positive safe integers and the ids osu! sent no user for (deleted or restricted), and `unchecked` the ids in a batch `beforeCall` refused and the ids whose user fails our schema. It throws like `getBeatmaps`, for a body that isn't `{ users: [...] }`.
+
 ### Errors
 
 Every failure talking to osu! is an `OsuApiError` with:
 
-- `code`: `"timeout"`, `"network"`, `"bad_response"` (not JSON, or not the expected shape), `"http_error"`, or `"budget"` (only `getStarRating`). Branch on the ones you know; later versions may add codes.
+- `code`: `"timeout"`, `"network"`, `"bad_response"` (not JSON, or not the expected shape), `"http_error"`, or `"budget"` (`getStarRating` and `getUser`). Branch on the ones you know; later versions may add codes.
 - `status`: osu!'s HTTP status, or null when there was none (network failure, timeout before an answer, budget).
 - `retryAfterMs`: osu!'s `Retry-After` on a 429 or 503, in delta-seconds or as an HTTP date (`Tue, 29 Sep 2026 12:00:03 GMT`), capped at 60 s. Null when osu! sent none or sent it in any other form.
 - `cause`: the underlying error, when there is one.
 
-Other errors are yours. `createOsuClient` throws a `RangeError` for a bad `timeoutMs` or `baseUrl`, `getBeatmapsets` for a bad `fallbackLimit`, and `getStarRating` for an `id` that isn't a positive safe integer. Bad credentials or a bad `userAgent` throw a `TypeError`. Each is thrown before the request it would affect is sent. Nothing else is checked: bad ids given to `getBeatmaps` or `getBeatmapsets` never throw (they're sorted as described above), and `mods` goes to osu! as given. An error thrown by your `credentials` function or `beforeCall` comes through unchanged.
+Other errors are yours. `createOsuClient` throws a `RangeError` for a bad `timeoutMs` or `baseUrl`, `getBeatmapsets` for a bad `fallbackLimit`, `getStarRating` for an `id` that isn't a positive safe integer, and `getUser` for a bad id, a blank name or an unknown ruleset. Bad credentials or a bad `userAgent` throw a `TypeError`. Each is thrown before the request it would affect is sent. Nothing else is checked: bad ids given to `getBeatmaps` or `getBeatmapsets` never throw (they're sorted as described above), and `mods` goes to osu! as given. An error thrown by your `credentials` function or `beforeCall` comes through unchanged.
 
 ```ts
 import { OsuApiError } from "@haruhimemoe/osu";
@@ -105,7 +112,7 @@ try {
 
 ### Staying under osu!'s rate limit
 
-osu! asks API users to stay at or under 60 requests a minute, and to cache what they fetch. Budget per OAuth app, not per request handler: if several features or serverless instances share one app, give them one counter. By default there is no budget: `getBeatmaps` with 5,000 ids makes 100 calls back to back. Pass `beforeCall` to all three methods. They ask it before each planned osu! call and skip the call when it returns false: `getBeatmaps` and `getBeatmapsets` put that call's ids in `unchecked`, and `getStarRating` rejects with code `"budget"`. Token requests aren't counted, and neither is the one retry after a 401. So one approved call can cost two API calls and up to two token requests: one when no token is cached yet, and one for a fresh token after the 401. Leave headroom for that.
+osu! asks API users to stay at or under 60 requests a minute, and to cache what they fetch. Budget per OAuth app, not per request handler: if several features or serverless instances share one app, give them one counter. By default there is no budget: `getBeatmaps` with 5,000 ids makes 100 calls back to back. Pass `beforeCall` to every method. They ask it before each planned osu! call and skip the call when it returns false: `getBeatmaps`, `getBeatmapsets` and `getUsers` put that call's ids in `unchecked`, and `getStarRating` and `getUser` reject with code `"budget"`. Token requests aren't counted, and neither is the one retry after a 401. So one approved call can cost two API calls and up to two token requests: one when no token is cached yet, and one for a fresh token after the 401. Leave headroom for that.
 
 ```ts
 // A fixed-window counter shared by every instance (MongoDB driver 7 here; any atomic store works).
@@ -141,6 +148,7 @@ await osu.getStarRating(129891, ["HD"], { beforeCall });
 | `BeatmapLookup`, `BeatmapOptions` | `getBeatmaps`' result and options. |
 | `BeatmapsetLookup`, `BeatmapsetOptions` | `getBeatmapsets`' result and options. |
 | `StarRatingOptions` | `getStarRating`'s options. |
+| `UserOptions`, `UserLookup`, `UsersOptions` | `getUser`'s options (`beforeCall`, `ruleset`); `getUsers`' result and options. |
 | `OsuApiError`, `OsuApiErrorCode` | The error, and its `code` values. `new OsuApiError(code, message, { status, retryAfterMs, cause })` builds one, for tests. |
 | `OSU_BEATMAPS_BATCH_LIMIT`, `OSU_BEATMAPSET_FALLBACK_LIMIT`, `OSU_TIMEOUT_MS` | 50 ids per `/beatmaps` call, the default `fallbackLimit` (10), the default `timeoutMs` (10,000). |
 | `BEATMAPSET_FALLBACK_LIMIT` | Deprecated: the old name of `OSU_BEATMAPSET_FALLBACK_LIMIT`, same value. |

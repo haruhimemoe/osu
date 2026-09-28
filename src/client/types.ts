@@ -7,8 +7,9 @@
  * @modified Mon Sep 28, 2026
  */
 
-import type { BeatmapMeta } from "../shapes/beatmap.js";
+import type { BeatmapMeta, Ruleset } from "../shapes/beatmap.js";
 import type { OsuBeatmapsetExtended } from "../shapes/beatmapset.js";
+import type { OsuUser } from "../shapes/user.js";
 
 /** An OAuth app's id and secret, from osu.ppy.sh/home/account/edit#oauth. */
 export type OsuCredentials = { clientId: string; clientSecret: string };
@@ -79,4 +80,23 @@ export type BeatmapsetOptions = BeatmapOptions & {
    * At most this many /beatmapsets/{id} fallback calls. Default OSU_BEATMAPSET_FALLBACK_LIMIT (10).
    */
   fallbackLimit?: number | undefined;
+};
+
+/** Options for getUser. */
+export type UserOptions = BeatmapOptions & {
+  /** The ruleset whose stats osu! answers with (default: the user's own). Doesn't change who. */
+  ruleset?: Ruleset | undefined;
+};
+
+/** Options for getUsers. */
+export type UsersOptions = BeatmapOptions;
+
+/**
+ * Users osu! knows (`found`), ids it doesn't (`missing`), and ids we couldn't check
+ * (`unchecked`: beforeCall refused their batch, or osu!'s user for them failed the schema).
+ */
+export type UserLookup = {
+  found: Map<number, OsuUser>;
+  missing: number[];
+  unchecked: number[];
 };

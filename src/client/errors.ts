@@ -15,7 +15,7 @@ const IMF_FIXDATE = /^[A-Z][a-z]{2}, \d{2} [A-Z][a-z]{2} \d{4} \d{2}:\d{2}:\d{2}
 /**
  * What went wrong: "timeout" (no answer in timeoutMs, headers or body), "network" (osu! couldn't
  * be reached), "bad_response" (a body that isn't JSON or isn't the expected shape), "http_error"
- * (osu! answered an error status), or "budget" (getStarRating's beforeCall refused). Branch on the
+ * (osu! answered an error status), or "budget" (getStarRating's or getUser's beforeCall refused). Branch on the
  * ones you know; later versions may add codes.
  */
 export type OsuApiErrorCode =

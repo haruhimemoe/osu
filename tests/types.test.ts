@@ -33,6 +33,10 @@ describe("client types, from the root", () => {
     expectTypeOf<Root.BeatmapsetOptions>().toEqualTypeOf<
       Root.BeatmapOptions & { fallbackLimit?: number | undefined }
     >();
+    expectTypeOf<Root.UserOptions>().toEqualTypeOf<
+      Root.BeatmapOptions & { ruleset?: Root.Ruleset | undefined }
+    >();
+    expectTypeOf<Root.UsersOptions>().toEqualTypeOf<Root.BeatmapOptions>();
   });
 
   it("pins the results and the client", () => {
@@ -58,6 +62,17 @@ describe("client types, from the root", () => {
         mods: readonly string[],
         options?: Root.StarRatingOptions,
       ) => Promise<number | null>
+    >();
+    expectTypeOf<Root.UserLookup>().toEqualTypeOf<{
+      found: Map<number, Root.OsuUser>;
+      missing: number[];
+      unchecked: number[];
+    }>();
+    expectTypeOf<Root.OsuClient["getUser"]>().toEqualTypeOf<
+      (user: number | string, options?: Root.UserOptions) => Promise<Root.OsuUser | null>
+    >();
+    expectTypeOf<Root.OsuClient["getUsers"]>().toEqualTypeOf<
+      (ids: readonly number[], options?: Root.UsersOptions) => Promise<Root.UserLookup>
     >();
   });
 

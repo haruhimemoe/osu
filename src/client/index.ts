@@ -1,7 +1,7 @@
 /**
  * @file src/client/index.ts
  * @desc The client's public API, re-exported by the root entry point: createOsuClient,
- *       OsuApiError, the option and result types, and the limits. The helpers in this folder stay
+ *       OsuApiError, the option and result types (users included), and the limits. The helpers in this folder stay
  *       private.
  * @author David @dvhsh (https://dvh.sh)
  * @created Mon Sep 28, 2026
@@ -24,4 +24,7 @@ export type {
   OsuClientOptions,
   OsuCredentials,
   StarRatingOptions,
+  UserLookup,
+  UserOptions,
+  UsersOptions,
 } from "./types.js";
