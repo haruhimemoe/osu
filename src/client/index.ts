@@ -10,7 +10,12 @@
 
 export { createOsuClient, type OsuClient } from "./client.js";
 export { OsuApiError, type OsuApiErrorCode } from "./errors.js";
-export { BEATMAPSET_FALLBACK_LIMIT, OSU_BEATMAPS_BATCH_LIMIT, OSU_TIMEOUT_MS } from "./options.js";
+export {
+  BEATMAPSET_FALLBACK_LIMIT,
+  OSU_BEATMAPS_BATCH_LIMIT,
+  OSU_BEATMAPSET_FALLBACK_LIMIT,
+  OSU_TIMEOUT_MS,
+} from "./options.js";
 export type {
   BeatmapLookup,
   BeatmapOptions,

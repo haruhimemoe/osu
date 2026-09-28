@@ -141,7 +141,8 @@ await osu.getStarRating(129891, ["HD"], { beforeCall });
 | `BeatmapsetLookup`, `BeatmapsetOptions` | `getBeatmapsets`' result and options. |
 | `StarRatingOptions` | `getStarRating`'s options. |
 | `OsuApiError`, `OsuApiErrorCode` | The error, and its `code` values. `new OsuApiError(code, message, { status, retryAfterMs, cause })` builds one, for tests. |
-| `OSU_BEATMAPS_BATCH_LIMIT`, `BEATMAPSET_FALLBACK_LIMIT`, `OSU_TIMEOUT_MS` | 50 ids per `/beatmaps` call, the default `fallbackLimit` (10), the default `timeoutMs` (10,000). |
+| `OSU_BEATMAPS_BATCH_LIMIT`, `OSU_BEATMAPSET_FALLBACK_LIMIT`, `OSU_TIMEOUT_MS` | 50 ids per `/beatmaps` call, the default `fallbackLimit` (10), the default `timeoutMs` (10,000). |
+| `BEATMAPSET_FALLBACK_LIMIT` | Deprecated: the old name of `OSU_BEATMAPSET_FALLBACK_LIMIT`, same value. |
 
 The root entry point also re-exports everything in `/shapes` and `/collections`.
 

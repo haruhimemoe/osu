@@ -75,6 +75,8 @@ export type BeatmapsetLookup = {
 
 /** Options for getBeatmapsets. */
 export type BeatmapsetOptions = BeatmapOptions & {
-  /** At most this many /beatmapsets/{id} fallback calls. Default BEATMAPSET_FALLBACK_LIMIT (10). */
+  /**
+   * At most this many /beatmapsets/{id} fallback calls. Default OSU_BEATMAPSET_FALLBACK_LIMIT (10).
+   */
   fallbackLimit?: number | undefined;
 };

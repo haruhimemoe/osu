@@ -23,7 +23,7 @@ const tokenResponseSchema = z.object({
   expires_in: z.number().int().positive(),
 });
 
-/** An app-authorized request: the method, a JSON body and extra headers (GET with none by default). */
+/** An app-authorized request's method (GET by default), JSON body and extra headers. */
 export type AuthorizedInit = { method?: string; body?: string; headers?: Record<string, string> };
 
 /**

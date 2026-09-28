@@ -24,6 +24,7 @@ it("exports the documented runtime API", () => {
       "MAX_COLLECTION_DB_BYTES",
       "MAX_COLLECTION_NAME_BYTES",
       "OSU_BASE_URL",
+      "OSU_BEATMAPSET_FALLBACK_LIMIT",
       "OSU_BEATMAPS_BATCH_LIMIT",
       "OSU_OAUTH",
       "OSU_SIGN_IN_SCOPES",
@@ -64,11 +65,17 @@ it("keeps the client out of /shapes", () => {
       .sort(),
   ).toEqual([
     "BEATMAPSET_FALLBACK_LIMIT",
+    "OSU_BEATMAPSET_FALLBACK_LIMIT",
     "OSU_BEATMAPS_BATCH_LIMIT",
     "OSU_TIMEOUT_MS",
     "OsuApiError",
     "createOsuClient",
   ]);
+});
+
+it("keeps the deprecated BEATMAPSET_FALLBACK_LIMIT equal to its prefixed name", () => {
+  expect(api.BEATMAPSET_FALLBACK_LIMIT).toBe(api.OSU_BEATMAPSET_FALLBACK_LIMIT);
+  expect(api.OSU_BEATMAPSET_FALLBACK_LIMIT).toBe(10);
 });
 
 it("keeps /collections to the collection.db API: no client, no shapes", () => {

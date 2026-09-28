@@ -8,11 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `OSU_BEATMAPSET_FALLBACK_LIMIT`, the default `fallbackLimit` (10), named like the client's other constants.
 - Named types for what the collection helpers take and return: `WriteCollectionDbOptions`, `CollectionHashes`, `AddToCollectionResult`, `MergeCollectionsResult` and `LazerImportFile`. The shapes are unchanged.
 
 ### Changed
 
 - `createOsuClient` refuses a `userAgent` that isn't printable ASCII with a `TypeError`. Before, a character past U+00FF (an emoji, say) passed, then every request failed with code `"network"`, and characters from U+0080 to U+00FF went out as raw Latin-1 bytes.
+
+### Deprecated
+
+- `BEATMAPSET_FALLBACK_LIMIT`: use `OSU_BEATMAPSET_FALLBACK_LIMIT`. It stays exported, with the same value, until a major release.
 
 ### Fixed
 

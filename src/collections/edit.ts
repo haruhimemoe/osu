@@ -261,7 +261,7 @@ export const mergeCollections = (
     // The source is untrusted: a nameless collection would only fail later, in writeCollectionDb.
     if (!isCollectionShape(incoming) || typeof incoming.name !== "string") {
       throw new TypeError(
-        `mergeCollections: source collection ${c} must be { name, hashes: [...] } with a string name`,
+        `mergeCollections: source collection ${c} must be { name: string, hashes: [...] }`,
       );
     }
     let index = byName.get(incoming.name);

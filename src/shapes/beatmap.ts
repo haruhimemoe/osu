@@ -4,7 +4,7 @@
  *       and BeatmapMeta, the source-agnostic metadata apps work with. Unknown keys are stripped.
  * @author David @dvhsh (https://dvh.sh)
  * @created Tue Sep 22, 2026
- * @modified Wed Sep 23, 2026
+ * @modified Mon Sep 28, 2026
  */
 
 import { z } from "zod";
@@ -13,6 +13,9 @@ import { z } from "zod";
 export const RULESETS = ["osu", "taiko", "fruits", "mania"] as const;
 export type Ruleset = (typeof RULESETS)[number];
 export const rulesetSchema = z.enum(RULESETS);
+
+/** A lowercase MD5 of a .osu file, as osu! computes it. */
+const MD5 = /^[0-9a-f]{32}$/;
 
 export const beatmapMetaSchema = z.object({
   beatmapId: z.number().int().positive(),
@@ -30,10 +33,7 @@ export const beatmapMetaSchema = z.object({
   bpm: z.number().nonnegative(),
   lengthSeconds: z.number().int().nonnegative(),
   starRating: z.number().nonnegative(),
-  checksum: z
-    .string()
-    .regex(/^[0-9a-f]{32}$/)
-    .nullable(),
+  checksum: z.string().regex(MD5).nullable(),
 });
 
 /** A difficulty's metadata, whatever source it came from. `od` and `hp` are osu!'s accuracy and drain. */
@@ -62,8 +62,6 @@ export const osuBeatmapRowSchema = z.object({
 });
 
 export type OsuBeatmapRow = z.infer<typeof osuBeatmapRowSchema>;
-
-const MD5 = /^[0-9a-f]{32}$/;
 
 /**
  * @function toBeatmapMeta

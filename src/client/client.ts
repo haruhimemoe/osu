@@ -21,7 +21,7 @@ import {
 } from "../shapes/beatmapset.js";
 import { OsuApiError } from "./errors.js";
 import { createTransport, release } from "./http.js";
-import { BEATMAPSET_FALLBACK_LIMIT, isId, resolveOptions } from "./options.js";
+import { isId, OSU_BEATMAPSET_FALLBACK_LIMIT, resolveOptions } from "./options.js";
 import { fetchRows } from "./rows.js";
 import { createAuthorizer } from "./token.js";
 import type {
@@ -172,7 +172,7 @@ export const createOsuClient = (options: OsuClientOptions) => {
       ids: readonly number[],
       {
         beforeCall = alwaysCall,
-        fallbackLimit = BEATMAPSET_FALLBACK_LIMIT,
+        fallbackLimit = OSU_BEATMAPSET_FALLBACK_LIMIT,
       }: BeatmapsetOptions = {},
     ): Promise<BeatmapsetLookup> {
       if (!Number.isInteger(fallbackLimit) || fallbackLimit < 0) {

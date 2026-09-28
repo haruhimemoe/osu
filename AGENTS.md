@@ -8,7 +8,7 @@
 - `src/client/index.ts`: the client's public API, re-exported by the root. It lists its exports by name, so the helpers stay private.
 - `src/client/client.ts`: `createOsuClient` (`getBeatmaps`, `getBeatmapsets`, `getStarRating`) and `OsuClient`.
 - `src/client/errors.ts`: `OsuApiError`, its codes, and the Retry-After parser. `src/client/types.ts`: the option and result types.
-- `src/client/options.ts`: the `OSU_BEATMAPS_BATCH_LIMIT`, `BEATMAPSET_FALLBACK_LIMIT` and `OSU_TIMEOUT_MS` constants, and `resolveOptions`, which checks `createOsuClient`'s options and fills in the defaults.
+- `src/client/options.ts`: the `OSU_BEATMAPS_BATCH_LIMIT`, `OSU_BEATMAPSET_FALLBACK_LIMIT` (and its deprecated old name, `BEATMAPSET_FALLBACK_LIMIT`) and `OSU_TIMEOUT_MS` constants, and `resolveOptions`, which checks `createOsuClient`'s options and fills in the defaults.
 - `src/client/http.ts`: one request (fetch with the timeout) and reading its answer. `src/client/token.ts`: the cached token and the 401 retry. `src/client/rows.ts`: `/beatmaps` batches, the budget, and filing rows.
 - `src/shapes/index.ts`: the `/shapes` entry.
 - `src/shapes/beatmap.ts`: rulesets, `BeatmapMeta`, osu!'s `/beatmaps` row, and `toBeatmapMeta`.
