@@ -5,13 +5,14 @@
  *       stable-written file comes back out of the writer byte for byte. Every count is checked
  *       against the bytes left and against an entry budget before anything is built from it, and
  *       only the first 1,000 warnings are kept, so a hostile file can't use much more memory than
- *       a real one of the same size limit.
+ *       a real one of the same size limit. The byte-level reads live in cursor.ts.
  * @author David @dvhsh (https://dvh.sh)
  * @created Thu Sep 24, 2026
- * @modified Thu Sep 24, 2026
+ * @modified Mon Sep 28, 2026
  */
 
-import { CollectionDbError, type CollectionDbErrorCode } from "./errors.js";
+import { createCursor, readError } from "./cursor.js";
+import { CollectionDbError } from "./errors.js";
 import {
   type CollectionDb,
   HEX_32,
@@ -77,8 +78,6 @@ export type ReadCollectionDbOptions = {
   lenient?: boolean | undefined;
 };
 
-const NULL_MARKER = 0x00;
-const STRING_MARKER = 0x0b;
 /** A collection takes at least a marker byte and a 4-byte hash count. */
 const MIN_COLLECTION_BYTES = 5;
 /** A hash takes at least a marker byte. */
@@ -91,13 +90,6 @@ const MIN_HASH_BYTES = 1;
 const ENTRY_BYTES = 34;
 /** Warnings listed in a read; the rest are only counted. */
 const MAX_WARNINGS = 1000;
-/** .NET reads a string length in at most 5 bytes, and the 5th can't take it past 2^31 - 1. */
-const MAX_LENGTH_BYTES = 5;
-const MAX_LAST_LENGTH_BYTE = 0x07;
-
-// Where a field sits, for messages: the name or a hash of a collection.
-const describe = (collection: number, hash: number | null): string =>
-  hash === null ? `collection ${collection}'s name` : `collection ${collection}, hash ${hash}`;
 
 /**
  * @function readCollectionDb
@@ -118,30 +110,17 @@ export const readCollectionDb = (
   }
   const maxBytes = maxBytesOption(options.maxBytes, "readCollectionDb");
   const lenient = options.lenient === true;
-  const end = bytes.byteLength;
-  if (end > maxBytes) {
+  const size = bytes.byteLength;
+  if (size > maxBytes) {
     throw new CollectionDbError(
       "too_large",
-      `collection.db is ${end} bytes, over the ${maxBytes}-byte limit`,
+      `collection.db is ${size} bytes, over the ${maxBytes}-byte limit`,
     );
   }
 
   const maxEntries = Math.floor(maxBytes / ENTRY_BYTES);
-
-  const view = new DataView(bytes.buffer, bytes.byteOffset, end);
-  const strict = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
-  let loose: TextDecoder | undefined;
   const warnings: CollectionDbWarning[] = [];
   let omittedWarnings = 0;
-  let offset = 0;
-
-  const fail = (
-    code: CollectionDbErrorCode,
-    message: string,
-    at: number,
-    collection: number | null = null,
-    hash: number | null = null,
-  ) => new CollectionDbError(code, message, { offset: at, collection, hash });
   const warn = (
     code: CollectionDbWarningCode,
     at: number,
@@ -156,7 +135,7 @@ export const readCollectionDb = (
   const claim = (count: number, at: number, collection: number | null) => {
     entries += count;
     if (entries > maxEntries) {
-      throw fail(
+      throw readError(
         "too_large",
         `the counts up to byte ${at} claim ${entries} collections and hashes, over the ${maxEntries} a ${maxBytes}-byte limit allows`,
         at,
@@ -164,108 +143,22 @@ export const readCollectionDb = (
       );
     }
   };
+  const cursor = createCursor(bytes, lenient, warn);
 
-  const readInt32 = (field: string, collection: number | null): number => {
-    if (end - offset < 4) {
-      throw fail("truncated", `the file ends in ${field} at byte ${offset}`, offset, collection);
-    }
-    const value = view.getInt32(offset, true);
-    offset += 4;
-    return value;
-  };
-
-  // An osu! string: a marker byte, then (for 0x0b) a ULEB128 byte length and UTF-8. Null for 0x00.
-  // `hash` is the hash's place in the file, for errors; `index` is where it lands in `hashes`, for
-  // warnings. Both are null for a name.
-  const readString = (
-    collection: number,
-    hash: number | null,
-    index: number | null,
-  ): string | null => {
-    const field = describe(collection, hash);
-    const markerAt = offset;
-    if (markerAt >= end) {
-      throw fail("truncated", `the file ends before ${field}`, markerAt, collection, hash);
-    }
-    const marker = bytes[offset++] as number;
-    if (marker === NULL_MARKER) return null;
-    if (marker !== STRING_MARKER) {
-      if (!lenient) {
-        throw fail(
-          "bad_marker",
-          `${field} has string marker 0x${marker.toString(16).padStart(2, "0")} at byte ${markerAt}, not 0x00 or 0x0b`,
-          markerAt,
-          collection,
-          hash,
-        );
-      }
-      warn("unknown_marker", markerAt, collection, index);
-    }
-
-    const lengthAt = offset;
-    let length = 0;
-    for (let i = 0; ; i++) {
-      if (offset >= end) {
-        throw fail("truncated", `the file ends in ${field}'s length`, lengthAt, collection, hash);
-      }
-      const byte = bytes[offset++] as number;
-      if (i === MAX_LENGTH_BYTES - 1 && byte > MAX_LAST_LENGTH_BYTE) {
-        throw fail(
-          "bad_length",
-          `${field}'s length at byte ${lengthAt} takes more than 5 bytes or passes 2^31 - 1`,
-          lengthAt,
-          collection,
-          hash,
-        );
-      }
-      length += (byte & 0x7f) * 2 ** (7 * i);
-      if (byte < 0x80) break;
-    }
-    if (length > end - offset) {
-      throw fail(
-        "bad_length",
-        `${field}'s length at byte ${lengthAt} runs past the end of the file`,
-        lengthAt,
-        collection,
-        hash,
-      );
-    }
-
-    const start = offset;
-    offset += length;
-    const encoded = bytes.subarray(start, offset);
-    try {
-      return strict.decode(encoded);
-    } catch {
-      if (!lenient) {
-        throw fail(
-          "invalid_utf8",
-          `${field} at byte ${start} isn't valid UTF-8`,
-          start,
-          collection,
-          hash,
-        );
-      }
-      warn("invalid_utf8", start, collection, index);
-      loose ??= new TextDecoder("utf-8", { ignoreBOM: true });
-      return loose.decode(encoded);
-    }
-  };
-
-  if (end < 8) {
-    const at = end < 4 ? 0 : 4;
-    throw fail(
+  if (size < 8) {
+    const at = size < 4 ? 0 : 4;
+    throw readError(
       "truncated",
       `the file ends in its ${at === 0 ? "version" : "collection count"}`,
       at,
     );
   }
-  const version = readInt32("the version", null);
-  const count = readInt32("the collection count", null);
-  if (count < 0 || count * MIN_COLLECTION_BYTES > end - offset) {
-    throw fail(
+  const version = cursor.readInt32("the version", null);
+  const count = cursor.readInt32("the collection count", null);
+  if (count < 0 || count * MIN_COLLECTION_BYTES > cursor.left()) {
+    throw readError(
       "bad_count",
-      `the collection count at byte 4 (${count}) doesn't fit in the ${end - offset} bytes left`,
+      `the collection count at byte 4 (${count}) doesn't fit in the ${cursor.left()} bytes left`,
       4,
     );
   }
@@ -274,20 +167,20 @@ export const readCollectionDb = (
   const collections: OsuCollection[] = [];
   const names = new Set<string>();
   for (let c = 0; c < count; c++) {
-    const nameAt = offset;
-    const read = readString(c, null, null);
+    const nameAt = cursor.offset;
+    const read = cursor.readString(c, null, null);
     const name = read ?? "";
     if (read === null) warn("null_name", nameAt, c, null);
     else if (name === "") warn("empty_name", nameAt, c, null);
     if (names.has(name)) warn("duplicate_name", nameAt, c, null);
     else names.add(name);
 
-    const countAt = offset;
-    const hashCount = readInt32(`collection ${c}'s hash count`, c);
-    if (hashCount < 0 || hashCount * MIN_HASH_BYTES > end - offset) {
-      throw fail(
+    const countAt = cursor.offset;
+    const hashCount = cursor.readInt32(`collection ${c}'s hash count`, c);
+    if (hashCount < 0 || hashCount * MIN_HASH_BYTES > cursor.left()) {
+      throw readError(
         "bad_count",
-        `collection ${c}'s hash count at byte ${countAt} (${hashCount}) doesn't fit in the ${end - offset} bytes left`,
+        `collection ${c}'s hash count at byte ${countAt} (${hashCount}) doesn't fit in the ${cursor.left()} bytes left`,
         countAt,
         c,
       );
@@ -297,9 +190,9 @@ export const readCollectionDb = (
     // Only a collection with two or more hashes can hold a duplicate.
     const seen = hashCount > 1 ? new Set<string>() : null;
     for (let h = 0; h < hashCount; h++) {
-      const hashAt = offset;
+      const hashAt = cursor.offset;
       const index = hashes.length;
-      const hash = readString(c, h, index);
+      const hash = cursor.readString(c, h, index);
       if (hash === null) {
         warn("null_hash", hashAt, c, null);
         continue;
@@ -314,15 +207,16 @@ export const readCollectionDb = (
     collections.push({ name, hashes });
   }
 
-  if (offset < end) {
+  if (cursor.left() > 0) {
+    const at = cursor.offset;
     if (!lenient) {
-      throw fail(
+      throw readError(
         "trailing_bytes",
-        `${end - offset} bytes follow the last collection, from byte ${offset}`,
-        offset,
+        `${cursor.left()} bytes follow the last collection, from byte ${at}`,
+        at,
       );
     }
-    warn("trailing_bytes", offset, null, null);
+    warn("trailing_bytes", at, null, null);
   }
   return { version, collections, warnings, omittedWarnings };
 };

@@ -7,7 +7,7 @@
  *       64 MiB of one- or two-byte entries before they're built.
  * @author David @dvhsh (https://dvh.sh)
  * @created Thu Sep 24, 2026
- * @modified Thu Sep 24, 2026
+ * @modified Mon Sep 28, 2026
  */
 
 import { describe, expect, it } from "vitest";
@@ -28,6 +28,7 @@ import {
   TV5_NULL_NAME,
   TV6_BAD_MARKER,
   TV7_SHORT,
+  thrown,
   toHex,
 } from "./collection-vectors.js";
 
@@ -41,16 +42,6 @@ const int32 = (value: number): string => {
   return toHex(bytes);
 };
 const compactHex = (bytes: Uint8Array): string => toHex(bytes).replaceAll(" ", "");
-
-// The thrown value, so its fields can be matched.
-const thrown = (run: () => unknown): unknown => {
-  try {
-    run();
-  } catch (error) {
-    return error;
-  }
-  throw new Error("expected a throw");
-};
 
 const readError = (bytes: Uint8Array, options?: { lenient?: boolean; maxBytes?: number }) => {
   const error = thrown(() => readCollectionDb(bytes, options));

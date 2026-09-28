@@ -5,7 +5,7 @@
  *       size limit, plus random databases surviving a write and a read.
  * @author David @dvhsh (https://dvh.sh)
  * @created Thu Sep 24, 2026
- * @modified Thu Sep 24, 2026
+ * @modified Mon Sep 28, 2026
  */
 
 import { describe, expect, it } from "vitest";
@@ -28,17 +28,9 @@ import {
   TV3_UNICODE_AND_EMPTY,
   TV4_LONG_NAME,
   TV5_NULL_NAME,
+  thrown,
   toHex,
 } from "./collection-vectors.js";
-
-const thrown = (run: () => unknown): unknown => {
-  try {
-    run();
-  } catch (error) {
-    return error;
-  }
-  throw new Error("expected a throw");
-};
 
 const writeError = (db: unknown, options?: { maxBytes?: number }) => {
   const error = thrown(() => writeCollectionDb(db as CollectionDb, options));

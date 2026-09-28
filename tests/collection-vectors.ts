@@ -6,7 +6,7 @@
  *       (RFC 1321's test inputs) that no beatmap has.
  * @author David @dvhsh (https://dvh.sh)
  * @created Thu Sep 24, 2026
- * @modified Thu Sep 24, 2026
+ * @modified Mon Sep 28, 2026
  */
 
 /**
@@ -39,6 +39,21 @@ export const asciiHex = (text: string): string =>
  */
 export const toHex = (bytes: Uint8Array): string =>
   Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(" ");
+
+/**
+ * @function thrown
+ * @param run {() => unknown} code expected to throw
+ * @returns {unknown} what it threw, so its fields can be matched
+ * @throws {Error} when it doesn't throw
+ */
+export const thrown = (run: () => unknown): unknown => {
+  try {
+    run();
+  } catch (error) {
+    return error;
+  }
+  throw new Error("expected a throw");
+};
 
 /** MD5 of "" and of "a", "abc" and "message digest" (RFC 1321). */
 export const MD5_EMPTY = "d41d8cd98f00b204e9800998ecf8427e";

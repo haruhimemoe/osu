@@ -8,16 +8,17 @@
  *       reorder what's already there.
  * @author David @dvhsh (https://dvh.sh)
  * @created Thu Sep 24, 2026
- * @modified Thu Sep 24, 2026
+ * @modified Mon Sep 28, 2026
  */
 
 import { CollectionDbError } from "./errors.js";
 import {
   COLLECTION_DB_FILENAME,
   type CollectionDb,
+  checkVersion,
   DEFAULT_COLLECTION_DB_VERSION,
   HEX_32,
-  isInt32,
+  isCollectionShape,
   MAX_COLLECTION_NAME_BYTES,
   type OsuCollection,
   utf8Length,
@@ -30,6 +31,50 @@ import { writeCollectionDb } from "./write.js";
  */
 const LAZER_IMPORT_CFG = "osu!.import.cfg";
 const CONTROL_CHARACTER = /\p{Cc}/u;
+
+/** collectionHashesFor's result: hashes to add, and the items that had none to give. */
+export type CollectionHashes<T> = {
+  /** Normalized (lowercase) hashes, deduplicated, in input order. */
+  hashes: string[];
+  /** The items whose checksum is null, missing or malformed. */
+  withoutChecksum: T[];
+};
+
+/** addToCollection's result. */
+export type AddToCollectionResult = {
+  /** A new database with the hashes appended, or the collection created at the end. */
+  db: CollectionDb;
+  /** Where the collection is in `db.collections`. */
+  index: number;
+  /** Whether the collection was created. */
+  created: boolean;
+  /** Hashes added. */
+  added: number;
+  /** Hashes skipped because the collection already held them (repeats in `hashes` included). */
+  alreadyPresent: number;
+  /**
+   * Only when it created the collection: an existing name equal to the new one apart from case,
+   * outer whitespace or Unicode form.
+   */
+  similarName: string | null;
+};
+
+/** mergeCollections' result. */
+export type MergeCollectionsResult = {
+  /** A new database, the target with the source merged in. */
+  db: CollectionDb;
+  /** Collections created. */
+  created: number;
+  /** Source hashes added. */
+  added: number;
+  /** Source hashes the collection already held. */
+  alreadyPresent: number;
+  /** Source hashes skipped as not 32 hex characters. */
+  invalid: number;
+};
+
+/** One file for lazer's setup wizard to import: its name at the archive's root, and its bytes. */
+export type LazerImportFile = { path: string; bytes: Uint8Array<ArrayBuffer> };
 
 // A collection's hashes copied once for editing, with a set of them for exact-match lookups.
 type WorkingList = { hashes: string[]; present: Set<string> };
@@ -82,15 +127,7 @@ const looseName = (name: string): string => name.normalize("NFKC").trim().toLowe
  */
 export const createCollectionDb = (
   version: number = DEFAULT_COLLECTION_DB_VERSION,
-): CollectionDb => {
-  if (!isInt32(version)) {
-    throw new CollectionDbError(
-      "invalid_version",
-      "version must be an integer from -2^31 to 2^31 - 1",
-    );
-  }
-  return { version, collections: [] };
-};
+): CollectionDb => ({ version: checkVersion(version), collections: [] });
 
 /**
  * @function normalizeHash
@@ -105,12 +142,12 @@ export const normalizeHash = (value: string): string | null =>
  * @function collectionHashesFor
  * @param beatmaps {Iterable<T>} difficulties with a `checksum`: BeatmapMeta, osu!'s beatmap rows,
  *        or your own objects carrying the MD5 of the .osu bytes you handed out
- * @returns {{ hashes: string[]; withoutChecksum: T[] }} the normalized hashes, deduplicated in
- *          input order, and the items whose checksum is null, missing or malformed
+ * @returns {CollectionHashes<T>} the normalized hashes, deduplicated in input order, and the
+ *          items whose checksum is null, missing or malformed
  */
 export const collectionHashesFor = <T extends { checksum?: string | null | undefined }>(
   beatmaps: Iterable<T>,
-): { hashes: string[]; withoutChecksum: T[] } => {
+): CollectionHashes<T> => {
   const hashes: string[] = [];
   const seen = new Set<string>();
   const withoutChecksum: T[] = [];
@@ -134,12 +171,11 @@ export const collectionHashesFor = <T extends { checksum?: string | null | undef
  *        characters or lone surrogates, and be at most MAX_COLLECTION_NAME_BYTES (127) UTF-8 bytes
  * @param hashes {Iterable<string>} MD5s to add, as an array or other iterable (a single string is a
  *        TypeError, not a list of characters); each must be 32 hex characters (any case)
- * @returns {{ db: CollectionDb; index: number; created: boolean; added: number;
- *          alreadyPresent: number; similarName: string | null }} a new database with the hashes
- *          appended (or the collection created at the end), where the collection is, how many
- *          hashes were added and how many were skipped because the collection already held them
- *          (repeats in `hashes` included), and, only when it created the collection, an existing
- *          name equal to `name` apart from case, outer whitespace or Unicode form
+ * @returns {AddToCollectionResult} a new database with the hashes appended (or the collection
+ *          created at the end), where the collection is, how many hashes were added and how many
+ *          were skipped because the collection already held them (repeats in `hashes` included),
+ *          and, only when it created the collection, an existing name equal to `name` apart from
+ *          case, outer whitespace or Unicode form
  * @throws {TypeError} when `hashes` is a string
  * @throws {CollectionDbError} invalid_name or name_too_long for a bad new name, then invalid_hash
  *         with the hash's position in `hashes`
@@ -149,14 +185,7 @@ export const addToCollection = (
   name: string,
   // `& object` rules out a bare string, which is iterable but would add one character at a time.
   hashes: Iterable<string> & object,
-): {
-  db: CollectionDb;
-  index: number;
-  created: boolean;
-  added: number;
-  alreadyPresent: number;
-  similarName: string | null;
-} => {
+): AddToCollectionResult => {
   if (typeof hashes === "string") {
     throw new TypeError("addToCollection: hashes must be a list, such as [hash], not one string");
   }
@@ -203,25 +232,18 @@ export const addToCollection = (
  * @function mergeCollections
  * @param target {CollectionDb} the database to merge into; its version is kept
  * @param source {CollectionDb} another file, such as a shared collection pack
- * @returns {{ db: CollectionDb; created: number; added: number; alreadyPresent: number;
- *          invalid: number }} a new database where each source collection, in order, merged into
- *          the target collection with the same exact name or was created at the end (two
- *          same-named source collections land in one), and how many collections were created and
- *          how many source hashes were added, already there, or skipped as not 32 hex characters.
- *          These are lazer's import rules, except that no collection gets a duplicate hash. It
- *          takes time in proportion to the hashes involved, however often a name repeats.
- * @throws {TypeError} when a source collection isn't { name, hashes: [...] }
+ * @returns {MergeCollectionsResult} a new database where each source collection, in order,
+ *          merged into the target collection with the same exact name or was created at the end
+ *          (two same-named source collections land in one), and how many collections were
+ *          created and how many source hashes were added, already there, or skipped as not 32 hex
+ *          characters. These are lazer's import rules, except that no collection gets a duplicate
+ *          hash. It takes time in proportion to the hashes involved, however often a name repeats.
+ * @throws {TypeError} when a source collection isn't { name, hashes: [...] } with a string name
  */
 export const mergeCollections = (
   target: CollectionDb,
   source: CollectionDb,
-): {
-  db: CollectionDb;
-  created: number;
-  added: number;
-  alreadyPresent: number;
-  invalid: number;
-} => {
+): MergeCollectionsResult => {
   const collections = [...target.collections];
   const byName = new Map<string, number>();
   collections.forEach((collection, index) => {
@@ -235,10 +257,11 @@ export const mergeCollections = (
   let alreadyPresent = 0;
   let invalid = 0;
 
-  source.collections.forEach((incoming: OsuCollection | null, c) => {
-    if (typeof incoming !== "object" || incoming === null || !Array.isArray(incoming.hashes)) {
+  source.collections.forEach((incoming: unknown, c) => {
+    // The source is untrusted: a nameless collection would only fail later, in writeCollectionDb.
+    if (!isCollectionShape(incoming) || typeof incoming.name !== "string") {
       throw new TypeError(
-        `mergeCollections: source collection ${c} must be { name, hashes: [...] }`,
+        `mergeCollections: source collection ${c} must be { name, hashes: [...] } with a string name`,
       );
     }
     let index = byName.get(incoming.name);
@@ -254,7 +277,7 @@ export const mergeCollections = (
       touched.set(index, list);
     }
     for (const value of incoming.hashes) {
-      const hash = normalizeHash(value);
+      const hash = normalizeHash(value as string);
       if (hash === null) invalid++;
       else if (append(list, hash)) added++;
       else alreadyPresent++;
@@ -271,14 +294,12 @@ export const mergeCollections = (
  * @function lazerImportFiles
  * @param db {CollectionDb} what to import into lazer, usually just the additions (lazer merges by
  *        exact name and never removes anything)
- * @returns {{ path: string; bytes: Uint8Array<ArrayBuffer> }[]} collection.db and an empty
- *          osu!.import.cfg, to zip at the root of an archive (not inside a folder) for lazer's
- *          setup wizard to import as a "previous osu! install"
+ * @returns {LazerImportFile[]} collection.db and an empty osu!.import.cfg, to zip at the root of
+ *          an archive (not inside a folder) for lazer's setup wizard to import as a "previous
+ *          osu! install"
  * @throws {CollectionDbError} whatever writeCollectionDb throws
  */
-export const lazerImportFiles = (
-  db: CollectionDb,
-): { path: string; bytes: Uint8Array<ArrayBuffer> }[] => [
+export const lazerImportFiles = (db: CollectionDb): LazerImportFile[] => [
   { path: COLLECTION_DB_FILENAME, bytes: writeCollectionDb(db) },
   { path: LAZER_IMPORT_CFG, bytes: new Uint8Array(0) },
 ];

@@ -1,11 +1,13 @@
 /**
  * @file src/collections/model.ts
  * @desc The collection.db model (a version and named lists of difficulty MD5s), its limits, and
- *       the checks the reader, the writer and the helpers share. Imports nothing at runtime.
+ *       the checks the reader, the writer and the helpers share. Imports only errors.ts.
  * @author David @dvhsh (https://dvh.sh)
  * @created Thu Sep 24, 2026
- * @modified Thu Sep 24, 2026
+ * @modified Mon Sep 28, 2026
  */
+
+import { CollectionDbError } from "./errors.js";
 
 /** One collection: its name and its difficulty MD5s, in file order. */
 export type OsuCollection = { name: string; hashes: readonly string[] };
@@ -32,14 +34,43 @@ export const COLLECTION_DB_FILENAME = "collection.db";
 export const HEX_32 = /^[0-9a-fA-F]{32}$/;
 /** A lowercase MD5, as osu! computes it (and as BeatmapMeta's checksum requires). */
 export const LOWERCASE_MD5 = /^[0-9a-f]{32}$/;
+/** The marker byte before a present string; 0x00 marks a null one. .NET writes 0x0b. */
+export const STRING_MARKER = 0x0b;
 
 /**
  * @function isInt32
  * @param value {unknown} anything
  * @returns {boolean} whether it's an integer from -2^31 to 2^31 - 1
  */
-export const isInt32 = (value: unknown): value is number =>
+const isInt32 = (value: unknown): value is number =>
   Number.isInteger(value) && (value as number) >= -(2 ** 31) && (value as number) <= 2 ** 31 - 1;
+
+/**
+ * @function checkVersion
+ * @param version {unknown} a database's version
+ * @returns {number} the version, when it's an int32
+ * @throws {CollectionDbError} invalid_version otherwise
+ */
+export const checkVersion = (version: unknown): number => {
+  if (!isInt32(version)) {
+    throw new CollectionDbError(
+      "invalid_version",
+      "version must be an integer from -2^31 to 2^31 - 1",
+    );
+  }
+  return version;
+};
+
+/**
+ * @function isCollectionShape
+ * @param value {unknown} one entry of a database's collections
+ * @returns {boolean} whether it's an object with a `hashes` array; the name and hashes themselves
+ *          are checked by whoever uses them
+ */
+export const isCollectionShape = (
+  value: unknown,
+): value is { name: unknown; hashes: readonly unknown[] } =>
+  typeof value === "object" && value !== null && Array.isArray((value as OsuCollection).hashes);
 
 /**
  * @function utf8Length

@@ -15,12 +15,13 @@
 - `src/shapes/beatmapset.ts`: a beatmapset's content fields, `OsuBeatmapsetExtended`, `isExtendedBeatmapset`, and the row-to-set schema.
 - `src/shapes/user.ts`: the `/me` schema and `toOsuUser`.
 - `src/shapes/links.ts`: `OSU_BASE_URL`, the OAuth endpoints and sign-in scopes, and page and cover URLs.
-- `src/collections/index.ts`: the `/collections` entry. It lists its exports by name, so the internals in `model.ts` stay private.
-- `src/collections/model.ts`: `OsuCollection`, `CollectionDb`, the limits and constants, and the checks the other files share (the MD5 patterns, int32, UTF-8 length with lone-surrogate detection, the `maxBytes` option).
-- `src/collections/read.ts`: `readCollectionDb` and the warning types. `src/collections/write.ts`: `writeCollectionDb`.
-- `src/collections/edit.ts`: `createCollectionDb`, `normalizeHash`, `collectionHashesFor`, `addToCollection`, `mergeCollections`, `lazerImportFiles`.
+- `src/collections/index.ts`: the `/collections` entry. It lists its exports by name, so the internals in `model.ts` and `cursor.ts` stay private.
+- `src/collections/model.ts`: `OsuCollection`, `CollectionDb`, the limits and constants, and the checks the other files share (the MD5 patterns, the string marker, `checkVersion`, `isCollectionShape`, UTF-8 length with lone-surrogate detection, the `maxBytes` option).
+- `src/collections/read.ts`: `readCollectionDb` and the warning types; it walks the file with the byte cursor in `src/collections/cursor.ts` (int32s, osu! strings, ULEB128 lengths).
+- `src/collections/write.ts`: `writeCollectionDb` and `WriteCollectionDbOptions`.
+- `src/collections/edit.ts`: `createCollectionDb`, `normalizeHash`, `collectionHashesFor`, `addToCollection`, `mergeCollections`, `lazerImportFiles`, and their result types.
 - `src/collections/errors.ts`: `CollectionDbError` and its codes.
-- `tests/`: Vitest. `tests/exports.test.ts` pins the public API; `tests/fixtures/beatmaps.json` is hand-written in osu!'s shape. `tests/collection-vectors.ts` holds the hand-built `collection.db` byte vectors, as hex.
+- `tests/`: Vitest. `tests/exports.test.ts` pins the public API; `tests/fixtures/beatmaps.json` is hand-written in osu!'s shape. `tests/collection-vectors.ts` holds the hand-built `collection.db` byte vectors, as hex, and the `thrown` helper the collections tests share.
 - `scripts/smoke.mjs`: imports the built `dist/` the way apps will (`bun run test:dist`). It runs `/collections` with Node's `Buffer` removed.
 - `scripts/check-consumer.mjs`: packs the package, installs it with a given zod version, then typechecks (DOM lib, no Node types) and runs a strict consumer of every entry point (`bun run check:consumer <zod version>`, needs the npm registry).
 - `.github/workflows/ci.yml`: Biome, typecheck, tests with coverage, and a pack dry run; the dist smoke test on Node 22.12 and 24; the consumer check on zod 4.0.16 and latest.

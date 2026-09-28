@@ -7,7 +7,7 @@
  *       used as typed), and none of them touching their inputs.
  * @author David @dvhsh (https://dvh.sh)
  * @created Thu Sep 24, 2026
- * @modified Thu Sep 24, 2026
+ * @modified Mon Sep 28, 2026
  */
 
 import { describe, expect, it } from "vitest";
@@ -37,18 +37,10 @@ import {
   TV2_FARM,
   TV3_UNICODE_AND_EMPTY,
   TV4_LONG_NAME,
+  thrown,
   toHex,
 } from "./collection-vectors.js";
 import fixture from "./fixtures/beatmaps.json" with { type: "json" };
-
-const thrown = (run: () => unknown): unknown => {
-  try {
-    run();
-  } catch (error) {
-    return error;
-  }
-  throw new Error("expected a throw");
-};
 
 const editError = (run: () => unknown) => {
   const error = thrown(run);
@@ -402,6 +394,17 @@ describe("mergeCollections", () => {
       const error = thrown(() => mergeCollections(farm(), source));
       expect(error).toBeInstanceOf(TypeError);
       expect((error as Error).message).not.toContain(MD5_ABC);
+    }
+  });
+
+  it("throws a TypeError for a source collection without a string name, before writing", () => {
+    for (const collection of [
+      { hashes: [] },
+      { name: 5, hashes: [] },
+      { name: null, hashes: [] },
+    ]) {
+      const source = { version: 1, collections: [collection] } as unknown as CollectionDb;
+      expect(() => mergeCollections(createCollectionDb(), source)).toThrow(TypeError);
     }
   });
 

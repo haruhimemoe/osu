@@ -6,19 +6,25 @@
  *       the shortest ULEB128 length), so a stable-written file round-trips byte for byte.
  * @author David @dvhsh (https://dvh.sh)
  * @created Thu Sep 24, 2026
- * @modified Thu Sep 24, 2026
+ * @modified Mon Sep 28, 2026
  */
 
 import { CollectionDbError } from "./errors.js";
 import {
   type CollectionDb,
-  isInt32,
+  checkVersion,
+  isCollectionShape,
   maxBytesOption,
   type OsuCollection,
+  STRING_MARKER,
   utf8Length,
 } from "./model.js";
 
-const STRING_MARKER = 0x0b;
+/** writeCollectionDb's options. */
+export type WriteCollectionDbOptions = {
+  /** Largest output allowed, in bytes. Default MAX_COLLECTION_DB_BYTES (64 MiB). */
+  maxBytes?: number | undefined;
+};
 
 // Bytes a ULEB128 length takes.
 const lengthSize = (length: number): number => {
@@ -33,37 +39,27 @@ const textLength = (value: unknown): number => (typeof value === "string" ? utf8
 /**
  * @function writeCollectionDb
  * @param db {CollectionDb} the version and collections to write
- * @param options {{ maxBytes?: number }} largest output allowed, default MAX_COLLECTION_DB_BYTES
+ * @param options {WriteCollectionDbOptions} largest output allowed, default MAX_COLLECTION_DB_BYTES
  * @returns {Uint8Array<ArrayBuffer>} the file, over its own ArrayBuffer (ready for a Blob)
  * @throws {CollectionDbError} invalid_version, invalid_name, invalid_hash, then too_large
  * @throws {TypeError} when db isn't shaped like a CollectionDb; RangeError for a bad maxBytes
  */
 export const writeCollectionDb = (
   db: CollectionDb,
-  options: { maxBytes?: number | undefined } = {},
+  options: WriteCollectionDbOptions = {},
 ): Uint8Array<ArrayBuffer> => {
   const maxBytes = maxBytesOption(options.maxBytes, "writeCollectionDb");
   if (typeof db !== "object" || db === null || !Array.isArray(db.collections)) {
     throw new TypeError("writeCollectionDb: db must be { version, collections: [...] }");
   }
   // Annotated: Array.isArray narrows a readonly array to any[].
-  const version: unknown = db.version;
   const collections: readonly OsuCollection[] = db.collections;
-  if (!isInt32(version)) {
-    throw new CollectionDbError(
-      "invalid_version",
-      "version must be an integer from -2^31 to 2^31 - 1",
-    );
-  }
+  const version = checkVersion(db.version);
 
   let size = 8;
   for (let c = 0; c < collections.length; c++) {
     const collection = collections[c];
-    if (
-      typeof collection !== "object" ||
-      collection === null ||
-      !Array.isArray(collection.hashes)
-    ) {
+    if (!isCollectionShape(collection)) {
       throw new TypeError(`writeCollectionDb: collection ${c} must be { name, hashes: [...] }`);
     }
     const length = textLength(collection.name);

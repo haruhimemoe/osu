@@ -312,7 +312,7 @@ This works on desktop only. Lazer on Android and iOS can't import collections.
 - Existing entries are never removed or reordered, hashes for missing maps included.
 - `similarName`, set only when it created the collection, is an existing name equal to `name` apart from case, outer whitespace or Unicode form ("Farm" when you asked for "farm"). Ask the user before you make a second collection.
 
-**`mergeCollections(target, source)`** merges another file, like a shared collection pack, into `target` with lazer's import rules: each source collection goes into the target collection with the same exact name, or is created at the end. It returns `{ db, created, added, alreadyPresent, invalid }`. Source names are used as they are. Source hashes that aren't 32 hex characters are skipped and counted in `invalid`. A source collection that isn't `{ name, hashes: [...] }` throws `TypeError`. Its time grows with the number of hashes, however often a name repeats in the source. One difference from lazer: lazer keeps a hash that repeats inside a collection it creates from the file, and this never adds a hash a collection already holds.
+**`mergeCollections(target, source)`** merges another file, like a shared collection pack, into `target` with lazer's import rules: each source collection goes into the target collection with the same exact name, or is created at the end. It returns `{ db, created, added, alreadyPresent, invalid }`. Source names are used as they are. Source hashes that aren't 32 hex characters are skipped and counted in `invalid`. A source collection that isn't `{ name, hashes: [...] }` with a string `name` throws `TypeError`, before anything is merged. Its time grows with the number of hashes, however often a name repeats in the source. One difference from lazer: lazer keeps a hash that repeats inside a collection it creates from the file, and this never adds a hash a collection already holds.
 
 **`lazerImportFiles(db)`** returns `[{ path: "collection.db", bytes }, { path: "osu!.import.cfg", bytes }]`, the second one empty. It throws whatever `writeCollectionDb` throws.
 
@@ -359,8 +359,9 @@ Each warning is `{ code, offset, collection, hash }`. `hash` is the index into t
 | --- | --- |
 | `readCollectionDb`, `ReadCollectionDbOptions`, `CollectionDbRead` | The reader, its options, and its result. |
 | `CollectionDbWarning`, `CollectionDbWarningCode` | A reader warning and its `code` values. |
-| `writeCollectionDb` | The writer. |
+| `writeCollectionDb`, `WriteCollectionDbOptions` | The writer and its options. |
 | `createCollectionDb`, `normalizeHash`, `collectionHashesFor`, `addToCollection`, `mergeCollections`, `lazerImportFiles` | The helpers above. |
+| `CollectionHashes`, `AddToCollectionResult`, `MergeCollectionsResult`, `LazerImportFile` | What `collectionHashesFor`, `addToCollection`, `mergeCollections` and `lazerImportFiles` return (the last one returns a list of them). `CollectionHashes<T>` takes the type of the items you passed. |
 | `CollectionDb`, `OsuCollection` | `{ version, collections }` and `{ name, hashes }`. |
 | `CollectionDbError`, `CollectionDbErrorCode` | The error, and its `code` values. `new CollectionDbError(code, message, { offset, collection, hash })` builds one, for tests. |
 | `MAX_COLLECTION_DB_BYTES`, `MAX_COLLECTION_NAME_BYTES`, `DEFAULT_COLLECTION_DB_VERSION`, `COLLECTION_DB_FILENAME` | 64 MiB, 127, 20150203, and `"collection.db"`. |

@@ -4,7 +4,7 @@
  *       where it happened. Messages name the field and position, never a name or a hash.
  * @author David @dvhsh (https://dvh.sh)
  * @created Thu Sep 24, 2026
- * @modified Thu Sep 24, 2026
+ * @modified Mon Sep 28, 2026
  */
 
 /**
@@ -32,6 +32,10 @@ export type CollectionDbErrorCode =
   | "invalid_hash"
   | (string & {});
 
+/**
+ * A problem in the data: a file the reader can't read, a database the writer can't write, or a new
+ * name or hash a helper refuses. Branch on `code`; `offset`, `collection` and `hash` say where.
+ */
 export class CollectionDbError extends Error {
   readonly code: CollectionDbErrorCode;
   /** Byte offset in the file of the field that failed, for read errors; else null. */
@@ -44,6 +48,11 @@ export class CollectionDbError extends Error {
    */
   readonly hash: number | null;
 
+  /**
+   * @param code {CollectionDbErrorCode} what went wrong
+   * @param message {string} the field and position; never a collection name or hash
+   * @param options {{ offset?, collection?, hash? }} where it happened (each null when not given)
+   */
   constructor(
     code: CollectionDbErrorCode,
     message: string,

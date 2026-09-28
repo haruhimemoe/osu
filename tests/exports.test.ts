@@ -5,7 +5,7 @@
  *       browser-safe codec that imports nothing at runtime from outside src/collections/.
  * @author David @dvhsh (https://dvh.sh)
  * @created Wed Sep 23, 2026
- * @modified Thu Sep 24, 2026
+ * @modified Mon Sep 28, 2026
  */
 
 import { readdirSync, readFileSync } from "node:fs";
@@ -94,7 +94,15 @@ it("keeps /collections to the collection.db API: no client, no shapes", () => {
 it("keeps src/collections/ free of outside runtime imports and of Node APIs", () => {
   const folder = new URL("../src/collections/", import.meta.url);
   const files = readdirSync(folder).sort();
-  expect(files).toEqual(["edit.ts", "errors.ts", "index.ts", "model.ts", "read.ts", "write.ts"]);
+  expect(files).toEqual([
+    "cursor.ts",
+    "edit.ts",
+    "errors.ts",
+    "index.ts",
+    "model.ts",
+    "read.ts",
+    "write.ts",
+  ]);
   const runtimeImports = new Map<string, string[]>();
   for (const file of files) {
     // Comments may mention anything; only code counts.
