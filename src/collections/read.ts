@@ -42,6 +42,7 @@ export type CollectionDbWarningCode =
   | "trailing_bytes"
   | (string & {});
 
+/** Something odd the reader found, where it is, and which entry it's about. */
 export type CollectionDbWarning = {
   code: CollectionDbWarningCode;
   /** Byte offset in the file of the field in question. */
@@ -65,6 +66,7 @@ export type CollectionDbRead = CollectionDb & {
   omittedWarnings: number;
 };
 
+/** readCollectionDb's options. */
 export type ReadCollectionDbOptions = {
   /**
    * Largest input accepted, in bytes. Default MAX_COLLECTION_DB_BYTES (64 MiB). It also caps

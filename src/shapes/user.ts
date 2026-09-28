@@ -4,11 +4,12 @@
  *       country. osu! never shares an email; key accounts on the osu! id.
  * @author David @dvhsh (https://dvh.sh)
  * @created Tue Sep 22, 2026
- * @modified Wed Sep 23, 2026
+ * @modified Mon Sep 28, 2026
  */
 
 import { z } from "zod";
 
+/** GET /api/v2/me, reduced to what OsuUser needs, in osu!'s snake_case. */
 export const osuUserSchema = z.object({
   id: z.number().int().positive(),
   username: z.string().min(1),
@@ -17,6 +18,7 @@ export const osuUserSchema = z.object({
   country: z.object({ code: z.string().nullish() }).nullish(),
 });
 
+/** The signed-in osu! user. Key accounts on `osuId`; osu! never shares an email. */
 export type OsuUser = {
   osuId: number;
   username: string;

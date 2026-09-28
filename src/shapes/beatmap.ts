@@ -11,12 +11,15 @@ import { z } from "zod";
 
 /** osu!'s four rulesets, as the osu! API names them. */
 export const RULESETS = ["osu", "taiko", "fruits", "mania"] as const;
+/** One of RULESETS. */
 export type Ruleset = (typeof RULESETS)[number];
+/** Accepts exactly the RULESETS names. */
 export const rulesetSchema = z.enum(RULESETS);
 
 /** A lowercase MD5 of a .osu file, as osu! computes it. */
 const MD5 = /^[0-9a-f]{32}$/;
 
+/** BeatmapMeta's schema: camelCase fields, a lowercase-MD5 checksum or null. */
 export const beatmapMetaSchema = z.object({
   beatmapId: z.number().int().positive(),
   beatmapsetId: z.number().int().positive(),
@@ -61,6 +64,7 @@ export const osuBeatmapRowSchema = z.object({
   }),
 });
 
+/** A parsed GET /api/v2/beatmaps row, in osu!'s snake_case. */
 export type OsuBeatmapRow = z.infer<typeof osuBeatmapRowSchema>;
 
 /**

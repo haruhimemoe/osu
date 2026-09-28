@@ -3,7 +3,7 @@
  * @desc osu! asset and page URLs.
  * @author David @dvhsh (https://dvh.sh)
  * @created Tue Sep 22, 2026
- * @modified Tue Sep 22, 2026
+ * @modified Mon Sep 28, 2026
  */
 
 import { describe, expect, it } from "vitest";

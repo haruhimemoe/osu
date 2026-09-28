@@ -4,9 +4,10 @@
  *       flow uses. Covers are meant to be hotlinked by the browser.
  * @author David @dvhsh (https://dvh.sh)
  * @created Tue Sep 22, 2026
- * @modified Wed Sep 23, 2026
+ * @modified Mon Sep 28, 2026
  */
 
+/** osu!'s website and API host. */
 export const OSU_BASE_URL = "https://osu.ppy.sh";
 
 /** Authorization code flow endpoints (register an app at osu.ppy.sh/home/account/edit#oauth). */
@@ -19,6 +20,7 @@ export const OSU_OAUTH = {
 /** `identify` reads /me; `public` reads public data. Sign-in needs `identify`. */
 export const OSU_SIGN_IN_SCOPES = ["identify", "public"] as const;
 
+/** A cover art variant on assets.ppy.sh; list is square, card and cover are wide. */
 export type CoverSize = "card" | "card@2x" | "list" | "list@2x" | "cover" | "cover@2x";
 
 /**

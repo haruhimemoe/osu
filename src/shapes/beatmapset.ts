@@ -7,11 +7,15 @@
  *       an extended set.
  * @author David @dvhsh (https://dvh.sh)
  * @created Tue Sep 22, 2026
- * @modified Wed Sep 23, 2026
+ * @modified Mon Sep 28, 2026
  */
 
 import { z } from "zod";
 
+/**
+ * A beatmapset's content and licensing fields, in osu!'s snake_case: extended or compact (a compact
+ * set lacks availability, track_id or tags).
+ */
 export const osuBeatmapsetSchema = z.object({
   id: z.number().int().positive(),
   status: z.string(),
