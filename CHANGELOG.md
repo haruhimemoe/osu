@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- `createOsuClient` refuses a `userAgent` that isn't printable ASCII with a `TypeError`. Before, a character past U+00FF (an emoji, say) passed, then every request failed with code `"network"`, and characters from U+0080 to U+00FF went out as raw Latin-1 bytes.
+
+### Fixed
+
+- Calls that got a 401 at the same time each dropped the token another call had just fetched and asked for another, so a revoked token could cost many token requests. They now share one refresh.
+- A token that osu! issues for a minute or less is reused for half its life instead of being fetched again on every call.
+- `retryAfterMs` reads `Retry-After` only as delta-seconds or an HTTP date, like `@haruhimemoe/hinai`. A malformed value such as `1.5` or `-5` gave 0 ms ("retry now"); it now gives null.
+
 ## [0.2.0] - 2026-09-24
 
 ### Added

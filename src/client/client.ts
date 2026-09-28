@@ -45,8 +45,8 @@ const alwaysCall = async (): Promise<boolean> => true;
  *        fetch and clock
  * @returns {{ getBeatmaps, getBeatmapsets, getStarRating }} the client; create one per process
  *          and reuse it so the token is shared
- * @throws {TypeError} when userAgent is empty or has control characters, or credentials given as
- *         an object aren't two non-empty strings
+ * @throws {TypeError} when userAgent is blank or holds anything but printable ASCII, or
+ *         credentials given as an object aren't two non-empty strings
  * @throws {RangeError} when timeoutMs isn't an integer from 1 to 2_147_483_647, or baseUrl isn't
  *         an https URL (or http on localhost / 127.0.0.1)
  */

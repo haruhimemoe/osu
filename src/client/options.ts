@@ -18,9 +18,11 @@ export const BEATMAPSET_FALLBACK_LIMIT = 10;
 export const OSU_TIMEOUT_MS = 10_000;
 /** The longest delay setTimeout (and so AbortSignal.timeout) takes. */
 const MAX_TIMEOUT_MS = 2_147_483_647;
-// Control characters (CR, LF, NUL, …) can't go in a header.
-// biome-ignore lint/suspicious/noControlCharactersInRegex: that's the point of this pattern.
-const CONTROL = /[\u0000-\u001f\u007f]/;
+/**
+ * A User-Agent we send: printable ASCII only. Control characters (CR, LF, NUL, …) can't go in a
+ * header, and fetch refuses anything past U+00FF, which would fail every request as "network".
+ */
+const USER_AGENT = /^[\x20-\x7e]+$/;
 
 /** createOsuClient's options, checked, with every default filled in. */
 export type ClientSettings = {
@@ -74,16 +76,19 @@ const checkBaseUrl = (value: string): string => {
  * @function resolveOptions
  * @param options {OsuClientOptions} what the caller passed to createOsuClient
  * @returns {ClientSettings} the options, checked, with defaults filled in
- * @throws {TypeError} when userAgent is empty or has control characters, or credentials given as
- *         an object aren't two non-empty strings
+ * @throws {TypeError} when userAgent is blank or holds anything but printable ASCII (a line
+ *         break, a control character, an emoji), or credentials given as an object aren't two
+ *         non-empty strings
  * @throws {RangeError} when timeoutMs isn't an integer from 1 to 2_147_483_647, or baseUrl isn't
  *         an https URL (or http on localhost / 127.0.0.1)
  */
 export const resolveOptions = (options: OsuClientOptions): ClientSettings => {
   const { credentials, userAgent } = options;
   const timeoutMs = options.timeoutMs ?? OSU_TIMEOUT_MS;
-  if (!userAgent.trim() || CONTROL.test(userAgent)) {
-    throw new TypeError("createOsuClient needs a userAgent naming your app, on one line.");
+  if (typeof userAgent !== "string" || !userAgent.trim() || !USER_AGENT.test(userAgent)) {
+    throw new TypeError(
+      "createOsuClient needs a userAgent naming your app, on one line, in printable ASCII.",
+    );
   }
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > MAX_TIMEOUT_MS) {
     throw new RangeError("timeoutMs must be an integer from 1 to 2147483647.");

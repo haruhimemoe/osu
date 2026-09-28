@@ -4,10 +4,10 @@
  *       a code (unreadable bodies, network errors, timeouts, HTTP errors with Retry-After, a
  *       refused budget), getBeatmaps and getStarRating honor beforeCall, rows that fail the
  *       schema are unchecked, bad inputs are refused or skipped, one token request serves
- *       concurrent calls, and only one 401 is retried.
+ *       concurrent calls, concurrent 401s share one refresh, and only one 401 is retried.
  * @author David @dvhsh (https://dvh.sh)
  * @created Wed Sep 23, 2026
- * @modified Wed Sep 23, 2026
+ * @modified Mon Sep 28, 2026
  */
 
 import { describe, expect, it } from "vitest";
@@ -129,6 +129,11 @@ describe("every failure is an OsuApiError", () => {
     [503, "120", 60_000],
     [429, "soon", null],
     [500, "5", null],
+    // Only delta-seconds or an IMF-fixdate: Date.parse would read these as past dates, so 0 ms.
+    [429, "1.5", null],
+    [429, "-5", null],
+    [429, "2026-09-28", null],
+    [429, "Mon, 99 Foo 2026 99:99:99 GMT", null],
   ])("reads a %i's Retry-After %j as %j ms", async (status, header, retryAfterMs) => {
     const { client } = stub(
       () => new Response(null, { status, headers: { "Retry-After": header } }),
@@ -299,6 +304,20 @@ describe("bad input", () => {
     expect(calls).toEqual([]);
   });
 
+  it.each([
+    "my-tool ✓ (+https://example.com)",
+    "café (+https://example.com)",
+    "tab\there",
+    undefined,
+  ])("refuses a userAgent %j that isn't printable ASCII, before any request", (userAgent) => {
+    expect(() =>
+      createOsuClient({
+        userAgent: userAgent as string,
+        credentials: { clientId: "1", clientSecret: "s" },
+      }),
+    ).toThrow(TypeError);
+  });
+
   it("refuses a userAgent with control characters", () => {
     expect(() =>
       createOsuClient({
@@ -329,6 +348,38 @@ describe("tokens", () => {
       client.getStarRating(3, ["HD"]).catch(() => null),
     ]);
     expect(calls.filter((call) => call.url.endsWith("/oauth/token"))).toHaveLength(1);
+  });
+
+  it("shares one refresh between concurrent calls that each get a 401", async () => {
+    const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    const revoked = new Set<string>();
+    let issued = 0;
+    let answered = 0;
+    const client = createOsuClient({
+      userAgent: "tests",
+      credentials: { clientId: "1", clientSecret: "s" },
+      fetch: async (input, init) => {
+        if (String(input).endsWith("/oauth/token")) {
+          issued += 1;
+          const value = `t${issued}`;
+          await wait(3);
+          return Response.json({ access_token: value, expires_in: 86400 });
+        }
+        const auth = (init?.headers as Record<string, string> | undefined)?.Authorization ?? "";
+        // Staggered, so some 401s land after another call's refresh has already finished.
+        await wait(2 * (answered++ % 20));
+        return revoked.has(auth)
+          ? new Response(null, { status: 401 })
+          : Response.json({ beatmaps: [] });
+      },
+    });
+    await client.getBeatmaps([1]);
+    revoked.add("Bearer t1");
+    const results = await Promise.allSettled(
+      Array.from({ length: 20 }, (_, i) => client.getBeatmaps([i + 1])),
+    );
+    expect(results.map((result) => result.status)).toEqual(Array(20).fill("fulfilled"));
+    expect(issued).toBe(2);
   });
 
   it("retries a 401 once, not twice", async () => {

@@ -48,13 +48,13 @@ console.log(sets.get(129891)?.availability.download_disabled);
 
 Keep the client on the server. It holds your client secret. Browser code imports only `/shapes` and `/collections`, and asks your server for anything from osu!.
 
-The client uses the client credentials grant with scope `public`. It asks for a token on the first call, shares that request between concurrent calls, and reuses the token until a minute before it expires. A 401 drops the token and retries the call once with a fresh one.
+The client uses the client credentials grant with scope `public`. It asks for a token on the first call, shares that request between concurrent calls, and reuses the token until a minute before it expires (or halfway through its life, for a token that lives under two minutes). A 401 drops the token and retries the call once with a fresh one. Calls that get a 401 at the same time share one fresh token.
 
 ### Options
 
 `createOsuClient(options)` takes:
 
-- **`userAgent`** (required): names your app and how to reach you. It goes on every request, the token request included. An empty value, or one with a line break or other control character, throws a `TypeError`.
+- **`userAgent`** (required): names your app and how to reach you. It goes on every request, the token request included. It must be printable ASCII on one line: a blank value, or one with a line break, another control character or anything outside ASCII (an accent, an emoji), throws a `TypeError`.
 - **`credentials`** (required): `{ clientId, clientSecret }`, or a function that returns it. Both fields must be strings that aren't blank, else you get a `TypeError` that names the field but not its value. An object is checked when you create the client. A function is called on every token request (the first call, each refresh, and after a 401), never at import, so importing the module never needs env and a rotated secret is picked up. If it throws, its error reaches you unchanged.
 - **`baseUrl`** (default `https://osu.ppy.sh`): token requests go here too, so this server receives your client secret. Point it only at osu! itself or your own test server, never at a mirror. It must be an absolute `https` URL, or `http` on `localhost` / `127.0.0.1`, else `createOsuClient` throws a `RangeError`. Trailing slashes are dropped.
 - **`timeoutMs`** (default `10000`): each request, answer and body, gives up after this long, so a hung osu! call can't hold a serverless function. It must be an integer from 1 to 2147483647, else `RangeError`.
@@ -83,7 +83,7 @@ Every failure talking to osu! is an `OsuApiError` with:
 
 - `code`: `"timeout"`, `"network"`, `"bad_response"` (not JSON, or not the expected shape), `"http_error"`, or `"budget"` (only `getStarRating`). Branch on the ones you know; later versions may add codes.
 - `status`: osu!'s HTTP status, or null when there was none (network failure, timeout before an answer, budget).
-- `retryAfterMs`: osu!'s `Retry-After` on a 429 or 503, capped at 60 s, else null.
+- `retryAfterMs`: osu!'s `Retry-After` on a 429 or 503, in delta-seconds or as an HTTP date (`Tue, 29 Sep 2026 12:00:03 GMT`), capped at 60 s. Null when osu! sent none or sent it in any other form.
 - `cause`: the underlying error, when there is one.
 
 Other errors are yours. `createOsuClient` throws a `RangeError` for a bad `timeoutMs` or `baseUrl`, `getBeatmapsets` for a bad `fallbackLimit`, and `getStarRating` for an `id` that isn't a positive safe integer. Bad credentials or a bad `userAgent` throw a `TypeError`. Each is thrown before the request it would affect is sent. Nothing else is checked: bad ids given to `getBeatmaps` or `getBeatmapsets` never throw (they're sorted as described above), and `mods` goes to osu! as given. An error thrown by your `credentials` function or `beforeCall` comes through unchanged.

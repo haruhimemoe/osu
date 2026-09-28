@@ -1,6 +1,7 @@
 /**
  * @file tests/client.test.ts
- * @desc osu! API client: client-credentials token (cached, refreshed, retried once on 401),
+ * @desc osu! API client: client-credentials token (cached, refreshed early, a short-lived one
+ *       kept for half its life, retried once on 401),
  *       ids[] batching, row mapping, getStarRating (POST beatmaps/{id}/attributes with the mods;
  *       null for a missing map or refused mods, throws on server errors or a body without a
  *       rating, retries once after a 401), and beatmapsets with the capped /beatmapsets/{id}
@@ -8,7 +9,7 @@
  *       beforeCall hook that can refuse a call.
  * @author David @dvhsh (https://dvh.sh)
  * @created Tue Sep 22, 2026
- * @modified Wed Sep 23, 2026
+ * @modified Mon Sep 28, 2026
  */
 
 import { HttpResponse, http } from "msw";
@@ -87,6 +88,24 @@ describe("createOsuClient", () => {
     now = 86_400_000 - 30_000;
     await client.getBeatmaps([75]);
     expect(tokenBodies).toHaveLength(2);
+  });
+
+  it("keeps a short-lived token for half its life, not one call", async () => {
+    server.use(
+      http.post(TOKEN_URL, () => {
+        tokenCount += 1;
+        return HttpResponse.json({ expires_in: 60, access_token: `token-${tokenCount}` });
+      }),
+    );
+    let now = 0;
+    const client = createOsuClient({ userAgent: SERVER_USER_AGENT, credentials, now: () => now });
+    for (let i = 0; i < 5; i++) await client.getBeatmaps([75]);
+    now = 29_999;
+    await client.getBeatmaps([75]);
+    expect(tokenCount).toBe(1);
+    now = 30_000;
+    await client.getBeatmaps([75]);
+    expect(tokenCount).toBe(2);
   });
 
   it("retries once with a fresh token after a 401", async () => {
