@@ -20,6 +20,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - `BEATMAPSET_FALLBACK_LIMIT`: use `OSU_BEATMAPSET_FALLBACK_LIMIT`. It stays exported, with the same value, until a major release.
 
+### Security
+
+- The release workflow runs every action from a pinned commit SHA and installs an exact npm version, since that job can publish with provenance. A release whose version is already on npm now ends with a warning instead of a quiet success. SECURITY.md lists GitHub private vulnerability reporting as the first channel.
+
 ### Fixed
 
 - Calls that got a 401 at the same time each dropped the token another call had just fetched and asked for another, so a revoked token could cost many token requests. They now share one refresh.

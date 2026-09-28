@@ -1,0 +1,42 @@
+name: Bug report
+description: Something in @haruhimemoe/osu is broken
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Package version
+      placeholder: "0.3.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: entry
+    attributes:
+      label: Entry point
+      options:
+        - "@haruhimemoe/osu (the client)"
+        - "@haruhimemoe/osu/shapes"
+        - "@haruhimemoe/osu/collections"
+        - "@haruhimemoe/osu/format"
+    validations:
+      required: true
+  - type: input
+    id: runtime
+    attributes:
+      label: Runtime and TypeScript version
+      placeholder: Node 24.3 (or Bun 1.4, or Chrome 140), TypeScript 5.9
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you called, what you expected, and what happened instead. Include the error's `code` if there was one.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Code to reproduce
+      description: The smallest snippet that shows it. Leave out your client secret, and any collection.db you can't share.
+      render: ts
+    validations:
+      required: true

@@ -26,7 +26,8 @@
 - `scripts/smoke.mjs`: imports the built `dist/` the way apps will (`bun run test:dist`). It runs `/collections` with Node's `Buffer` removed, and `/format`.
 - `scripts/check-consumer.mjs`: packs the package, installs it with a given zod version, then typechecks (DOM lib, no Node types) and runs a strict consumer of every entry point (`bun run check:consumer <zod version>`, needs the npm registry).
 - `.github/workflows/ci.yml`: Biome, typecheck, tests with coverage, and a pack dry run; the dist smoke test on Node 22.12 and 24; the consumer check on zod 4.0.16 and latest.
-- `.github/workflows/release.yml`: publishes to npm when a GitHub release is published. Maintainers only.
+- `.github/workflows/release.yml`: publishes to npm when a GitHub release is published. Maintainers only. A version already on npm publishes nothing and leaves a warning on the run.
+- `.github/dependabot.yml`: weekly npm and GitHub Actions updates. `.github/ISSUE_TEMPLATE/` and `.github/pull_request_template.md`: the bug and feature forms, and the PR checklist.
 - `llms.txt`: the repo summary for LLMs. It isn't shipped in the npm package.
 
 ## Rules
@@ -44,6 +45,7 @@
 - **zod is a peer dependency** (^4.0.16). Don't add runtime dependencies. Dev dependencies use exact versions.
 - **Public API is pinned** in two halves. `tests/exports.test.ts` snapshots every entry point's runtime exports, so an added or removed value shows up. `tests/types.test.ts` imports every documented type from each entry point that exports it and pins its shape with `expectTypeOf`; `bun run typecheck` checks it (it does nothing at runtime), so a dropped `export type` or a changed shape fails. A new type export goes in `tests/types.test.ts` too. Adding or removing an export is a semver decision: note it in `CHANGELOG.md`.
 - **Docs match the code.** When an export, option, default or error changes, update `README.md` (it's for users) and `llms.txt` in the same change. Add a line under `## [Unreleased]` in `CHANGELOG.md` ([Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/)); never edit a released entry.
+- **Workflows pin every action to a full commit SHA** with a `# vX.Y.Z` comment, and the release job pins npm to an exact version: the release job can publish. Dependabot bumps the SHAs; never go back to a tag like `@v7`.
 - **Releases are cut by the maintainers.** Don't bump the version, tag, or publish.
 - Code style: Biome (2 spaces, double quotes, 100 columns). Every `.ts` and `.mjs` file starts with the `@file / @desc / @author / @created / @modified` header; set `@modified` on files you change. Exported functions get JSDoc with `@function`, `@param`, `@returns`. Imports in `src/` use `.js` extensions.
 - Coverage stays at 95% or more for lines, functions, branches and statements (`vitest.config.ts`).
