@@ -22,7 +22,7 @@
 - `src/collections/edit.ts`: `createCollectionDb`, `normalizeHash`, `collectionHashesFor`, `addToCollection`, `mergeCollections`, `lazerImportFiles`, and their result types.
 - `src/collections/errors.ts`: `CollectionDbError` and its codes.
 - `src/format/index.ts`: the `/format` entry: `formatDuration`, `formatLongDuration`, `formatStars`, `formatBpm`, `formatStat`, `formatBytes`, `formatRange`. packs and pools had identical copies; the output must stay exactly theirs.
-- `tests/`: Vitest. `tests/exports.test.ts` pins the public API; `tests/fixtures/beatmaps.json` is hand-written in osu!'s shape. `tests/collection-vectors.ts` holds the hand-built `collection.db` byte vectors, as hex, and the `thrown` helper the collections tests share.
+- `tests/`: Vitest. `tests/exports.test.ts` pins the runtime exports and `tests/types.test.ts` the type exports; `tests/fixtures/beatmaps.json` is hand-written in osu!'s shape. `tests/collection-vectors.ts` holds the hand-built `collection.db` byte vectors, as hex, and the `thrown` helper the collections tests share.
 - `scripts/smoke.mjs`: imports the built `dist/` the way apps will (`bun run test:dist`). It runs `/collections` with Node's `Buffer` removed, and `/format`.
 - `scripts/check-consumer.mjs`: packs the package, installs it with a given zod version, then typechecks (DOM lib, no Node types) and runs a strict consumer of every entry point (`bun run check:consumer <zod version>`, needs the npm registry).
 - `.github/workflows/ci.yml`: Biome, typecheck, tests with coverage, and a pack dry run; the dist smoke test on Node 22.12 and 24; the consumer check on zod 4.0.16 and latest.
@@ -42,7 +42,7 @@
 - **Respect osu!'s terms:** a real User-Agent on every request, one token per client, and no retry loops beyond the single 401 refresh.
 - **Tests never call osu!.** Stub requests with msw or the client's `fetch` option. Fixtures are hand-written in osu!'s shape.
 - **zod is a peer dependency** (^4.0.16). Don't add runtime dependencies. Dev dependencies use exact versions.
-- **Public API is pinned** by `tests/exports.test.ts`. Adding or removing an export is a semver decision: note it in `CHANGELOG.md`.
+- **Public API is pinned** in two halves. `tests/exports.test.ts` snapshots every entry point's runtime exports, so an added or removed value shows up. `tests/types.test.ts` imports every documented type from each entry point that exports it and pins its shape with `expectTypeOf`; `bun run typecheck` checks it (it does nothing at runtime), so a dropped `export type` or a changed shape fails. A new type export goes in `tests/types.test.ts` too. Adding or removing an export is a semver decision: note it in `CHANGELOG.md`.
 - **Docs match the code.** When an export, option, default or error changes, update `README.md` (it's for users) and `llms.txt` in the same change. Add a line under `## [Unreleased]` in `CHANGELOG.md` ([Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/)); never edit a released entry.
 - **Releases are cut by the maintainers.** Don't bump the version, tag, or publish.
 - Code style: Biome (2 spaces, double quotes, 100 columns). Every `.ts` and `.mjs` file starts with the `@file / @desc / @author / @created / @modified` header; set `@modified` on files you change. Exported functions get JSDoc with `@function`, `@param`, `@returns`. Imports in `src/` use `.js` extensions.
