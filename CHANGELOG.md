@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-06
+
 ### Added
 
 - `getMatch(match, { beforeCall, maxPages })` on the client: a multiplayer match from `/api/v2/matches/{id}` by id or mp link, as `{ match, complete }`, or null on 404. It pages back through the events with `before` until the first one (at most `maxPages`, 50 by default), merging events and users from every page. It rejects with code `"budget"` when `beforeCall` refuses the first page; a refused later page ends the call with `complete: false`.
@@ -70,7 +72,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `createOsuClient` for servers, with `getBeatmaps`, `getBeatmapsets` and `getStarRating`: a cached client-credentials token, a required User-Agent, timeouts, and a `beforeCall` hook for a shared rate budget.
 - `OsuApiError` with a `code`, the HTTP `status` and `retryAfterMs`.
 
-[unreleased]: https://github.com/haruhimemoe/osu/compare/v0.4.0...HEAD
+[unreleased]: https://github.com/haruhimemoe/osu/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/haruhimemoe/osu/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/haruhimemoe/osu/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/haruhimemoe/osu/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/haruhimemoe/osu/compare/f89f0042f1d6559740dd995e41a8a59d86c35a6a...v0.2.0
