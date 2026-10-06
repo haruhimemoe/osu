@@ -422,6 +422,6 @@ MIT. See [LICENSE](LICENSE). Not affiliated with osu! or ppy Pty Ltd. Using the 
 
 ## Contributing
 
-Questions and feedback are welcome on the haruhime.moe [Discord server](https://discord.gg/bKy9kjMV4y). Bugs and ideas go in [issues](https://github.com/haruhimemoe/osu/issues).
+Questions and feedback are welcome on the haruhime.moe [Discord server](https://haruhime.moe/discord). Bugs and ideas go in [issues](https://github.com/haruhimemoe/osu/issues).
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for dev setup and how to submit a change, [CHANGELOG.md](CHANGELOG.md) for release history, and [SECURITY.md](SECURITY.md) to report a vulnerability.
