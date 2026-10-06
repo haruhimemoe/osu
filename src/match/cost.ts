@@ -74,7 +74,8 @@ const bathbot = (match: OsuMatch, games: readonly MatchGame[]): Map<number, numb
       if (winner === "red") red += 1;
       else if (winner === "blue") blue += 1;
     }
-    if (Math.abs(red - blue) === 1 && last.scores.length > 0) {
+    // Like Bathbot, a 1-0 isn't a tiebreaker: both teams need a win.
+    if (red > 0 && blue > 0 && Math.abs(red - blue) === 1 && last.scores.length > 0) {
       const average = mean(last.scores.map((score) => score.score));
       for (const score of last.scores) {
         tiebreaker.set(score.userId, Math.min(0.5, 0.25 * (score.score / average)));
@@ -98,8 +99,9 @@ const bathbot = (match: OsuMatch, games: readonly MatchGame[]): Map<number, numb
 const osuplus = (games: readonly MatchGame[]): Map<number, number> => {
   const ratios = new Map<number, number[]>();
   for (const game of games) {
-    const total = game.scores.reduce((sum, score) => sum + score.score, 0);
-    if (total === 0) continue;
+    if (game.scores.length === 0) continue;
+    // osu!plus counts a game where everyone scored 0 as a play worth 0.
+    const total = game.scores.reduce((sum, score) => sum + score.score, 0) || 1;
     for (const score of game.scores) {
       push(ratios, score.userId, (score.score * game.scores.length) / total);
     }
@@ -117,6 +119,7 @@ const flashlight = (games: readonly MatchGame[]): Map<number, number> => {
   for (const game of games) {
     if (game.scores.length === 0) continue;
     const middle = median(game.scores.map((score) => score.score));
+    // osu!plus divides by zero here; we skip the game instead.
     if (middle === 0) continue;
     for (const score of game.scores) push(ratios, score.userId, score.score / middle);
   }
@@ -130,15 +133,16 @@ const flashlight = (games: readonly MatchGame[]): Map<number, number> => {
 };
 
 /**
- * Elitebotix /osu-matchscore, mixed mode: Σ(score / middle score) / p × (0.8 + 0.2p). Scores
- * under 10,000 are dropped, games left with one score skipped, and in an even lobby the
- * player's own score is left out so the middle score is one score.
+ * Elitebotix /osu-matchscore, mixed mode: Σ(score / middle score) / p × (0.8 + 0.2p), then each
+ * result divided by the middle player's result. Games with one score are skipped, then scores
+ * under 10,000 dropped, and in an even lobby the player's own score is left out so the middle
+ * score is one score.
  */
 const elitebotix = (games: readonly MatchGame[]): Map<number, number> => {
   const ratios = new Map<number, number[]>();
   for (const game of games) {
+    if (game.scores.length < 2) continue;
     const scores = game.scores.filter((score) => score.score >= 10_000);
-    if (scores.length < 2) continue;
     for (const score of scores) {
       const others = scores.length % 2 === 0 ? scores.filter((other) => other !== score) : scores;
       const sorted = others.map((other) => other.score).sort((a, b) => a - b);
@@ -154,6 +158,10 @@ const elitebotix = (games: readonly MatchGame[]): Map<number, number> => {
       (list.reduce((sum, ratio) => sum + ratio, 0) / played) * (0.8 + 0.2 * played),
     );
   }
+  if (costs.size === 0) return costs;
+  const middle = median([...costs.values()]);
+  if (middle === 0) return costs;
+  for (const [userId, cost] of costs) costs.set(userId, cost / middle);
   return costs;
 };
 

@@ -114,6 +114,17 @@ describe("matchCosts", () => {
     const finished = costs("bathbot", games, "2026-10-03T19:00:00+00:00");
     expect(finished.get(1)).toBeCloseTo(1.54 * 1.5 + 0.3, 10);
     expect(finished.get(2)).toBeCloseTo(1.46 * 1.5 + 0.2, 10);
+    // A 1-0 isn't a tiebreaker: blue needs a win too.
+    const sweep = games.map((one) => ({ ...one, scores: [red(600), blue(400)] }));
+    const oneNil = costs(
+      "bathbot",
+      [
+        ...sweep.slice(0, 4).map((one) => ({ ...one, scores: [red(500), blue(500)] })),
+        sweep[4] as MatchGame,
+      ],
+      "2026-10-03T19:00:00+00:00",
+    );
+    expect(oneNil.get(1)).toBeCloseTo(1.54 * 1.5, 10);
     // Still running: no tiebreaker yet.
     expect(costs("bathbot", games).get(1)).toBeCloseTo(1.54 * 1.5, 10);
   });
@@ -135,8 +146,10 @@ describe("matchCosts", () => {
     const result = costs("elitebotix");
     // Game 1: 600k against 400k is 1.5; game 3 is 400/600. Game 5 has one score and is skipped.
     const sum = 1.5 + 1 + 400 / 600 + 1;
-    expect(result.get(1)).toBeCloseTo((sum / 4) * 1.6, 10);
-    expect(result.get(2)).toBeCloseTo((sum / 4) * 1.6, 10);
+    // Both come to (sum / 4) × 1.6; divided by the middle player's result, each is 1.
+    expect(sum).toBeGreaterThan(0);
+    expect(result.get(1)).toBeCloseTo(1, 10);
+    expect(result.get(2)).toBeCloseTo(1, 10);
   });
 
   it("elitebotix: odd lobbies use the middle score, and scores under 10,000 are dropped", () => {
@@ -146,6 +159,24 @@ describe("matchCosts", () => {
     expect(result.get(1)).toBeCloseTo(1.5, 10);
     expect(result.get(3)).toBeCloseTo(0.5, 10);
     expect(result.has(4)).toBe(false);
+  });
+
+  it("elitebotix: a lone score left after the 10,000 filter is a round worth 1", () => {
+    const result = costs("elitebotix", [
+      game(1, [score(1, 500 * k), score(2, 5_000)]),
+      game(2, [score(1, 300 * k), score(2, 100 * k), score(3, 200 * k)]),
+    ]);
+    // Player 1: rounds 1 and 1.5, so 1.25 × 1.2 = 1.5; players 2 and 3: 0.5 and 1. Middle is 1.
+    expect(result.get(1)).toBeCloseTo(1.5, 10);
+    expect(result.get(2)).toBeCloseTo(0.5, 10);
+  });
+
+  it("osuplus: a game where everyone scored 0 is a play worth 0", () => {
+    const result = costs("osuplus", [
+      game(1, [score(1, 0), score(2, 0)]),
+      game(2, [score(1, 100), score(2, 100)]),
+    ]);
+    expect(result.get(1)).toBeCloseTo((2 * 1) / 4, 10);
   });
 
   it("skips warmups and aborted games for every formula", () => {
