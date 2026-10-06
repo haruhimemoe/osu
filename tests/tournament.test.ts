@@ -154,6 +154,40 @@ describe("buildLazerBracket", () => {
       ["winnerTo", (value) => ({ ...value, matches: [{ ...at(value.matches, 1), winnerTo: 9 }] })],
       ["loserTo", (value) => ({ ...value, matches: [{ ...at(value.matches, 1), loserTo: 9 }] })],
       ["date", (value) => ({ ...value, matches: [{ ...at(value.matches, 1), date: "soon" }] })],
+      [
+        "blank acronym",
+        (value) => ({ ...value, teams: [{ name: "x", acronym: "", players: [] }] }),
+      ],
+      [
+        "seed",
+        (value) => ({
+          ...value,
+          teams: [{ name: "x", acronym: "X", seed: Number.NaN, players: [] }],
+        }),
+      ],
+      ["score", (value) => ({ ...value, matches: [{ ...at(value.matches, 1), team1Score: 1.5 }] })],
+      [
+        "position",
+        (value) => ({
+          ...value,
+          matches: [{ ...at(value.matches, 1), position: { x: Number.NaN, y: 0 } }],
+        }),
+      ],
+      [
+        "two current",
+        (value) => ({
+          ...value,
+          matches: [at(value.matches, 1), { ...at(value.matches, 2), current: true }],
+        }),
+      ],
+      ["self loop", (value) => ({ ...value, matches: [{ ...at(value.matches, 1), winnerTo: 2 }] })],
+      [
+        "bestOf",
+        (value) => ({
+          ...value,
+          rounds: [{ name: "Finals", bestOf: 9.5, startDate: "2026-01-01" }],
+        }),
+      ],
       ["start date", (value) => ({ ...value, rounds: [{ name: "Finals", startDate: "x" }] })],
     ];
     for (const [name, change] of cases) {

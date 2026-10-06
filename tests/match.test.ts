@@ -265,6 +265,21 @@ describe("gameWinner", () => {
     expect(gameWinner(game, { by: "combo" }).winner).toBe("red");
   });
 
+  it("judges by the room's own win condition unless told otherwise", () => {
+    const scores = [s(1, "red", 900, { accuracy: 0.9 }), s(2, "blue", 100, { accuracy: 1 })];
+    expect(gameWinner({ ...teamGame(scores), scoringType: "accuracy" }).winner).toBe("blue");
+    expect(gameWinner({ ...teamGame(scores), scoringType: "combo" }).totals.get("red")).toBe(0);
+    expect(
+      gameWinner({ ...teamGame(scores), scoringType: "accuracy" }, { by: "score" }).winner,
+    ).toBe("red");
+    expect(gameWinner({ ...teamGame(scores), scoringType: "score" }).winner).toBe("red");
+  });
+
+  it("leaves out team none and failed scores together", () => {
+    const game = teamGame([s(1, "none", 999), s(2, "red", 5, { passed: false }), s(3, "blue", 1)]);
+    expect(gameWinner(game, { passedOnly: true }).totals).toEqual(new Map([["blue", 1]]));
+  });
+
   it("counts failed scores unless passedOnly", () => {
     const game = teamGame([s(1, "red", 500, { passed: false }), s(2, "blue", 400)]);
     expect(gameWinner(game).winner).toBe("red");
@@ -282,6 +297,10 @@ describe("gameWinner", () => {
     ).toBeNull();
     expect(
       gameWinner(teamGame([s(1, "none", 1), s(2, "none", 5), s(3, "none", 5)], "head-to-head"))
+        .winner,
+    ).toBeNull();
+    expect(
+      gameWinner(teamGame([s(1, "none", 5), s(2, "none", 5), s(3, "none", 5)], "head-to-head"))
         .winner,
     ).toBeNull();
     expect(gameWinner(teamGame([]))).toEqual({ winner: null, totals: new Map() });

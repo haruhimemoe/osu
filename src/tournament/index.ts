@@ -192,9 +192,11 @@ const isInteger = (value: unknown): value is number => Number.isSafeInteger(valu
  * @returns {{ bracket: LazerBracket; json: string }} the bracket.json object and its text
  *          (indented, ending in a newline), to save as `tournament/bracket.json` in lazer's
  *          tournament storage. Pick/ban, seeding results and map details are left for lazer
- * @throws {TypeError} on an unknown ruleset, a duplicate team acronym, round name or match id, a
- *         non-integer id, a match naming an unknown round or team, a winnerTo or loserTo naming
- *         an unknown match, or a date that isn't valid
+ * @throws {TypeError} on an unknown ruleset; a blank or duplicate team acronym; a duplicate round
+ *         name or match id; a seed that isn't finite; an id, score, position, bestOf or banCount
+ *         that isn't an integer; more than one current match; a match naming an unknown round or
+ *         team; a winnerTo or loserTo naming the match itself or an unknown match; or a date that
+ *         isn't valid
  */
 export const buildLazerBracket = (input: BracketInput): { bracket: LazerBracket; json: string } => {
   const ruleset = RULESET_INFO[input.ruleset];
@@ -203,6 +205,10 @@ export const buildLazerBracket = (input: BracketInput): { bracket: LazerBracket;
   }
   const acronyms = new Set<string>();
   const teams = input.teams.map((team): LazerBracketTeam => {
+    if (team.acronym === "") throw new TypeError("A team acronym must not be blank.");
+    if (team.seed !== undefined && typeof team.seed === "number" && !Number.isFinite(team.seed)) {
+      throw new TypeError(`Team "${team.acronym}" has an invalid seed.`);
+    }
     if (acronyms.has(team.acronym)) throw new TypeError(`Duplicate team "${team.acronym}".`);
     acronyms.add(team.acronym);
     return {
@@ -240,10 +246,23 @@ export const buildLazerBracket = (input: BracketInput): { bracket: LazerBracket;
   }
 
   const progressions: LazerBracket["Progressions"] = [];
+  let currents = 0;
   const matches = input.matches.map((match): LazerBracketMatch => {
     const inRound = roundMatches.get(match.round);
     if (!inRound) throw new TypeError(`Match ${match.id} names an unknown round.`);
     inRound.push(match.id);
+    for (const [field, value] of [
+      ["team1Score", match.team1Score],
+      ["team2Score", match.team2Score],
+      ["position.x", match.position?.x],
+      ["position.y", match.position?.y],
+    ] as const) {
+      if (value !== undefined && !isInteger(value)) {
+        throw new TypeError(`Match ${match.id}'s ${field} must be an integer.`);
+      }
+    }
+    if (match.current) currents += 1;
+    if (currents > 1) throw new TypeError("At most one match can be current.");
     for (const acronym of [match.team1, match.team2]) {
       if (acronym !== undefined && !acronyms.has(acronym)) {
         throw new TypeError(`Match ${match.id} names an unknown team.`);
@@ -254,6 +273,7 @@ export const buildLazerBracket = (input: BracketInput): { bracket: LazerBracket;
       [match.loserTo, true],
     ] as const) {
       if (target === undefined) continue;
+      if (target === match.id) throw new TypeError(`Match ${match.id} moves to itself.`);
       if (!ids.has(target)) throw new TypeError(`Match ${match.id} moves to an unknown match.`);
       progressions.push({
         SourceID: match.id,
@@ -277,6 +297,13 @@ export const buildLazerBracket = (input: BracketInput): { bracket: LazerBracket;
     };
   });
 
+  for (const round of input.rounds) {
+    for (const value of [round.bestOf, round.banCount]) {
+      if (value !== undefined && !isInteger(value)) {
+        throw new TypeError(`Round "${round.name}"'s bestOf and banCount must be integers.`);
+      }
+    }
+  }
   const rounds = input.rounds.map(
     (round): LazerBracketRound => ({
       Name: round.name,

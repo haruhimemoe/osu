@@ -111,9 +111,10 @@ describe("getMatch", () => {
     expect(requests).toHaveLength(0);
   });
 
-  it("stops at maxPages with complete: false", async () => {
+  it("stops at maxPages with complete: false, keeping the newest events", async () => {
     const result = await client().getMatch(111, { maxPages: 1 });
     expect(result?.complete).toBe(false);
+    expect(result?.match.events.map((event) => event.id)).toEqual([5, 6, 7, 8, 9]);
     expect(requests).toHaveLength(1);
   });
 

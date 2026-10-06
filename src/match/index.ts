@@ -23,9 +23,9 @@ export type WinCondition = "score" | "accuracy" | "combo";
 /** Options for gameWinner and mapWins. */
 export type GameWinnerOptions = {
   /**
-   * "score" (default): each side's summed score, which is the room's own scoring (score v2 when
-   * the room used it). "accuracy": each side's mean accuracy. "combo": each side's summed max
-   * combo.
+   * "score": each side's summed score. "accuracy": each side's mean accuracy. "combo": each
+   * side's summed max combo. Default: the room's win condition (`scoringType` "accuracy" or
+   * "combo"), else "score" (score v1 or v2, whichever the room used).
    */
   by?: WinCondition | undefined;
   /** Count only passed scores (default false: failed scores count, as in score v2). */
@@ -96,6 +96,10 @@ export const listGames = (match: OsuMatch, { warmups = 0 }: ListGamesOptions = {
   return completed.slice(warmups);
 };
 
+/** The win condition the room itself used. */
+const roomCondition = (game: MatchGame): WinCondition =>
+  game.scoringType === "accuracy" || game.scoringType === "combo" ? game.scoringType : "score";
+
 const scoreValue = (score: MatchScore, by: WinCondition): number =>
   by === "accuracy" ? score.accuracy : by === "combo" ? score.maxCombo : score.score;
 
@@ -109,7 +113,7 @@ const scoreValue = (score: MatchScore, by: WinCondition): number =>
  */
 export const gameWinner = (
   game: MatchGame,
-  { by = "score", passedOnly = false }: GameWinnerOptions = {},
+  { by = roomCondition(game), passedOnly = false }: GameWinnerOptions = {},
 ): GameResult => {
   const team = isTeamGame(game);
   const sums = new Map<MatchSide, { total: number; count: number }>();
