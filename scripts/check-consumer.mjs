@@ -7,7 +7,7 @@
  *       scripts/check-consumer.mjs <zod version> (after `bun run build`). Needs the npm registry.
  * @author David @dvhsh (https://dvh.sh)
  * @created Wed Sep 23, 2026
- * @modified Mon Sep 28, 2026
+ * @modified Tue Oct 6, 2026
  */
 
 import { execFileSync } from "node:child_process";
@@ -58,6 +58,9 @@ import { createOsuClient, OsuApiError, type OsuApiErrorCode, type OsuClient } fr
 import { type BeatmapMeta, beatmapMetaSchema, isExtendedBeatmapset, osuBeatmapsetSchema, type Ruleset, toBeatmapMeta, osuBeatmapRowSchema, toOsuUser } from "@haruhimemoe/osu/shapes";
 import { addToCollection, type CollectionDb, CollectionDbError, type CollectionDbErrorCode, type CollectionDbRead, collectionHashesFor, createCollectionDb, lazerImportFiles, readCollectionDb, writeCollectionDb } from "@haruhimemoe/osu/collections";
 import { formatBpm, formatDuration, formatRange, formatStars } from "@haruhimemoe/osu/format";
+import { type GameResult, gameWinner, type MatchSide, mapWins } from "@haruhimemoe/osu/match";
+import { type OsuMatch, parseMatchId, toOsuMatch } from "@haruhimemoe/osu/shapes";
+import { buildLazerBracket, type LazerBracket } from "@haruhimemoe/osu/tournament";
 
 const row = { id: 75, beatmapset_id: 1, mode: "osu", version: "Normal", difficulty_rating: 2.55, cs: 4, ar: 6, accuracy: 6, drain: 6, bpm: 120, total_length: 142, checksum: "a5b99395a42bd55bc5eb1d2411cbdf8b", beatmapset: { artist: "a", title: "t", creator: "c", user_id: 2 } };
 const meta: BeatmapMeta = toBeatmapMeta(osuBeatmapRowSchema.parse(row));
@@ -88,7 +91,19 @@ if (formatRange(meta.starRating, 7.806, formatStars) !== "2.55–7.81") throw ne
 if (formatDuration(meta.lengthSeconds) !== "2:22" || formatBpm(meta.bpm) !== "120") throw new Error("format");
 // @ts-expect-error a formatter takes a number (it would typecheck if types were any)
 const badStars = () => formatStars("5");
-void client; void inferred; void badStars; void bad; void code; void dbCode; void oneString;
+const page = { match: { id: 1, name: "m", start_time: "t" }, events: [{ id: 1, detail: { type: "other" }, timestamp: "t", game: { id: 2, beatmap_id: 75, start_time: "t", end_time: "t", mode: "osu", scoring_type: "scorev2", team_type: "team-vs", mods: ["NF"], scores: [{ user_id: 2, score: 5, accuracy: 1, max_combo: 1, mods: ["HD"], passed: true, match: { slot: 0, team: "red" } }] } }], users: [], first_event_id: 1, latest_event_id: 1 };
+const osuMatch: OsuMatch = toOsuMatch(page);
+const firstGame = osuMatch.events[0]?.game;
+if (!firstGame) throw new Error("match game");
+const result: GameResult = gameWinner(firstGame);
+const side: MatchSide | null = result.winner;
+if (side !== "red" || mapWins(osuMatch).get("red") !== 1 || parseMatchId("osu.ppy.sh/mp/1") !== 1) throw new Error("match");
+const ladder: LazerBracket = buildLazerBracket({ ruleset: "osu", teams: [], rounds: [], matches: [] }).bracket;
+if (ladder.Ruleset.ShortName !== "osu") throw new Error("bracket");
+// @ts-expect-error an unknown ruleset must not typecheck for a bracket either
+const badBracket = () => buildLazerBracket({ ruleset: "catch", teams: [], rounds: [], matches: [] });
+const getMatch: OsuClient["getMatch"] = client.getMatch;
+void client; void inferred; void badBracket; void getMatch; void badStars; void bad; void code; void dbCode; void oneString;
 console.log("consumer: ok");
 `,
   );

@@ -2,12 +2,14 @@
 
 # @haruhimemoe/osu
 
-osu! API v2 for the haruhime.moe tools: [packs](https://packs.haruhime.moe), [pools](https://pools.haruhime.moe) (in beta) and, soon, sheets. It comes in four parts:
+osu! API v2 for the haruhime.moe tools: [packs](https://packs.haruhime.moe), [pools](https://pools.haruhime.moe) (in beta) and, soon, sheets. It comes in six parts:
 
 - **`@haruhimemoe/osu/shapes`**: the data. Zod schemas and types for a difficulty (`BeatmapMeta` and osu!'s beatmap row), a beatmapset's content fields, and the signed-in user, plus osu! links and the sign-in endpoints. No client code, so it's safe in browsers and in other packages that read osu!-shaped data, like mirrors.
 - **`@haruhimemoe/osu/collections`**: reads and writes osu!stable's `collection.db`, so a web page can add maps to a player's collections: stable takes the edited file back, and lazer imports it through its setup wizard. Safe in browsers, and it doesn't load zod.
 - **`@haruhimemoe/osu/format`**: display text for beatmap numbers: length as `m:ss`, star rating to two decimals, BPM, CS/AR/OD/HP, file sizes and ranges. Pure functions, safe in browsers, no zod.
-- **`@haruhimemoe/osu`**: everything above, plus `createOsuClient` for servers. It caches the client-credentials token, sends your User-Agent, and has a hook for a shared rate budget. It fetches beatmaps, beatmapsets and star ratings with mods.
+- **`@haruhimemoe/osu/match`**: game winners and map wins from a multiplayer match (an mp link): team vs or head-to-head, by score, accuracy or combo, with warmups skipped and aborted games left out. Pure functions, safe in browsers.
+- **`@haruhimemoe/osu/tournament`**: writes the osu!lazer tournament client's `bracket.json` from plain data (teams, rounds and their maps, matches with scores and progressions), so streamers get a ready file. Pure, safe in browsers.
+- **`@haruhimemoe/osu`**: everything above, plus `createOsuClient` for servers. It caches the client-credentials token, sends your User-Agent, and has a hook for a shared rate budget. It fetches beatmaps, beatmapsets, star ratings with mods, users and multiplayer matches.
 
 ## Install
 
@@ -48,6 +50,8 @@ console.log(sets.get(129891)?.availability.download_disabled);
 
 const peppy = await osu.getUser("peppy"); // an OsuUser, or null
 const { found: users } = await osu.getUsers([2, 124493]);
+
+const result = await osu.getMatch("https://osu.ppy.sh/community/matches/111"); // { match, complete }, or null
 ```
 
 Keep the client on the server. It holds your client secret. Browser code imports only `/shapes`, `/collections` and `/format`, and asks your server for anything from osu!.
@@ -85,16 +89,25 @@ The client uses the client credentials grant with scope `public`. It asks for a 
 
 **`getUsers(ids, { beforeCall })`** asks `/api/v2/users?ids[]=` 50 ids at a time, after dropping duplicates, and returns `{ found, missing, unchecked }` like `getBeatmaps`: `found` holds `OsuUser` by id, `missing` the ids that aren't positive safe integers and the ids osu! sent no user for (deleted or restricted), and `unchecked` the ids in a batch `beforeCall` refused and the ids whose user fails our schema. It throws like `getBeatmaps`, for a body that isn't `{ users: [...] }`.
 
+**`getMatch(match, { beforeCall, maxPages })`** reads a multiplayer match from `/api/v2/matches/{id}`. `match` is an id or an mp link (`https://osu.ppy.sh/community/matches/{id}` or `https://osu.ppy.sh/mp/{id}`, the scheme optional). osu! sends a match's events 100 at a time, newest first, so `getMatch` asks again with `before` until it reaches the match's first event. It returns `{ match, complete }`, or null when osu! answers 404 for the first page.
+
+- `match` is an `OsuMatch` (see [Shapes](#shapes)): the match's name and times, every event oldest first (games included), and the users osu! sent with them.
+- `complete` is false when `maxPages` (default 50, so 5,000 events) ran out or `beforeCall` refused a later page. `match.events` then holds the newest events only.
+- `beforeCall` is asked before every page. It rejects with code `"budget"` when `beforeCall` refuses the first one.
+- It throws `RangeError` for a `match` that isn't a positive id or an osu! mp link, and for a `maxPages` that isn't a positive integer, before anything is sent. A 404 after the first page is an `"http_error"`, and so is any other error status. A body that isn't a match is a `"bad_response"`.
+
+Scores come in osu!'s classic format: mods as acronyms and `count_miss`. A live match is read as it stands: games still being played have `endTime: null`.
+
 ### Errors
 
 Every failure talking to osu! is an `OsuApiError` with:
 
-- `code`: `"timeout"`, `"network"`, `"bad_response"` (not JSON, or not the expected shape), `"http_error"`, or `"budget"` (`getStarRating` and `getUser`). Branch on the ones you know; later versions may add codes.
+- `code`: `"timeout"`, `"network"`, `"bad_response"` (not JSON, or not the expected shape), `"http_error"`, or `"budget"` (`getStarRating`, `getUser` and `getMatch`). Branch on the ones you know; later versions may add codes.
 - `status`: osu!'s HTTP status, or null when there was none (network failure, timeout before an answer, budget).
 - `retryAfterMs`: osu!'s `Retry-After` on a 429 or 503, in delta-seconds or as an HTTP date (`Tue, 29 Sep 2026 12:00:03 GMT`), capped at 60 s. Null when osu! sent none or sent it in any other form.
 - `cause`: the underlying error, when there is one.
 
-Other errors are yours. `createOsuClient` throws a `RangeError` for a bad `timeoutMs` or `baseUrl`, `getBeatmapsets` for a bad `fallbackLimit`, `getStarRating` for an `id` that isn't a positive safe integer, and `getUser` for a bad id, a blank name or an unknown ruleset. Bad credentials or a bad `userAgent` throw a `TypeError`. Each is thrown before the request it would affect is sent. Nothing else is checked: bad ids given to `getBeatmaps` or `getBeatmapsets` never throw (they're sorted as described above), and `mods` goes to osu! as given. An error thrown by your `credentials` function or `beforeCall` comes through unchanged.
+Other errors are yours. `createOsuClient` throws a `RangeError` for a bad `timeoutMs` or `baseUrl`, `getBeatmapsets` for a bad `fallbackLimit`, `getStarRating` for an `id` that isn't a positive safe integer, `getUser` for a bad id, a blank name or an unknown ruleset, and `getMatch` for a bad match or `maxPages`. Bad credentials or a bad `userAgent` throw a `TypeError`. Each is thrown before the request it would affect is sent. Nothing else is checked: bad ids given to `getBeatmaps` or `getBeatmapsets` never throw (they're sorted as described above), and `mods` goes to osu! as given. An error thrown by your `credentials` function or `beforeCall` comes through unchanged.
 
 ```ts
 import { OsuApiError } from "@haruhimemoe/osu";
@@ -112,7 +125,7 @@ try {
 
 ### Staying under osu!'s rate limit
 
-osu! asks API users to stay at or under 60 requests a minute, and to cache what they fetch. Budget per OAuth app, not per request handler: if several features or serverless instances share one app, give them one counter. By default there is no budget: `getBeatmaps` with 5,000 ids makes 100 calls back to back. Pass `beforeCall` to every method. They ask it before each planned osu! call and skip the call when it returns false: `getBeatmaps`, `getBeatmapsets` and `getUsers` put that call's ids in `unchecked`, and `getStarRating` and `getUser` reject with code `"budget"`. Token requests aren't counted, and neither is the one retry after a 401. So one approved call can cost two API calls and up to two token requests: one when no token is cached yet, and one for a fresh token after the 401. Leave headroom for that.
+osu! asks API users to stay at or under 60 requests a minute, and to cache what they fetch. Budget per OAuth app, not per request handler: if several features or serverless instances share one app, give them one counter. By default there is no budget: `getBeatmaps` with 5,000 ids makes 100 calls back to back. Pass `beforeCall` to every method. They ask it before each planned osu! call and skip the call when it returns false: `getBeatmaps`, `getBeatmapsets` and `getUsers` put that call's ids in `unchecked`, `getStarRating`, `getUser` and `getMatch` reject with code `"budget"` (`getMatch` only for its first page; a later page refused ends the call with `complete: false`). Token requests aren't counted, and neither is the one retry after a 401. So one approved call can cost two API calls and up to two token requests: one when no token is cached yet, and one for a fresh token after the 401. Leave headroom for that.
 
 ```ts
 // A fixed-window counter shared by every instance (MongoDB driver 7 here; any atomic store works).
@@ -149,11 +162,13 @@ await osu.getStarRating(129891, ["HD"], { beforeCall });
 | `BeatmapsetLookup`, `BeatmapsetOptions` | `getBeatmapsets`' result and options. |
 | `StarRatingOptions` | `getStarRating`'s options. |
 | `UserOptions`, `UserLookup`, `UsersOptions` | `getUser`'s options (`beforeCall`, `ruleset`); `getUsers`' result and options. |
+| `MatchOptions`, `MatchLookup` | `getMatch`'s options (`beforeCall`, `maxPages`) and result (`{ match, complete }`). |
 | `OsuApiError`, `OsuApiErrorCode` | The error, and its `code` values. `new OsuApiError(code, message, { status, retryAfterMs, cause })` builds one, for tests. |
 | `OSU_BEATMAPS_BATCH_LIMIT`, `OSU_BEATMAPSET_FALLBACK_LIMIT`, `OSU_TIMEOUT_MS` | 50 ids per `/beatmaps` call, the default `fallbackLimit` (10), the default `timeoutMs` (10,000). |
+| `OSU_MATCH_EVENTS_LIMIT`, `OSU_MATCH_PAGE_LIMIT` | 100 events per `/matches/{id}` page, and the default `maxPages` (50). |
 | `BEATMAPSET_FALLBACK_LIMIT` | Deprecated: the old name of `OSU_BEATMAPSET_FALLBACK_LIMIT`, same value. |
 
-The root entry point also re-exports everything in `/shapes`, `/collections` and `/format`.
+The root entry point also re-exports everything in `/shapes`, `/collections`, `/format`, `/match` and `/tournament`.
 
 ## Shapes
 
@@ -198,6 +213,12 @@ export const signedIn = async (accessToken: string) => {
 | `osuBeatmapsetRowSchema` | A `/api/v2/beatmaps` row reduced to `id`, `beatmapset_id` and its `beatmapset`. |
 | `osuUserSchema`, `toOsuUser`, `OsuUser` | The signed-in user from `/api/v2/me`. `osuUserSchema` keeps osu!'s names: `id`, `username`, and `avatar_url`, `country_code` and `country.code`, each optional or null. `toOsuUser` takes the raw profile and returns an `OsuUser`, `{ osuId, username, avatarUrl, countryCode }`, reading the country from `country.code`, else `country_code`. It throws a `ZodError` when there's no id or username. osu! never shares an email. |
 | `OSU_BASE_URL`, `OSU_OAUTH`, `OSU_SIGN_IN_SCOPES` | `https://osu.ppy.sh`; the sign-in endpoints (`authorizationUrl`, `tokenUrl`, and `userInfoUrl` for `/api/v2/me`); and the scopes `["identify", "public"]`. |
+| `parseMatchId` | A match id from an id, a numeric string, or an mp link (`osu.ppy.sh/community/matches/{id}`, `osu.ppy.sh/mp/{id}`, with or without `https://` and `www.`). null for anything else, including other sites. |
+| `osuMatchResponseSchema`, `OsuMatchResponse`, `toOsuMatch`, `OsuMatch` | One `/api/v2/matches/{id}` page, and its mapping to `OsuMatch`: `{ id, name, startTime, endTime, events, users, firstEventId, latestEventId }`, events oldest first. `users` are `OsuUser`s; one without an id and username is left out. |
+| `osuMatchEventSchema`, `toMatchEvent`, `MatchEvent` | One event: `{ id, type, text, timestamp, userId, game }`. osu!'s `type` is `match-created`, `match-disbanded`, `player-joined`, `player-left`, `player-kicked`, `host-changed`, or `other` (a game comes as `other` with `game` set). |
+| `osuMatchGameSchema`, `MatchGame` | A game: `{ id, beatmapId, startTime, endTime, ruleset, scoringType, teamType, mods, scores, beatmap }`. `endTime` is null while it's being played. `beatmap` is `{ id, beatmapsetId, version }`, or null when osu! no longer has the map. |
+| `osuMatchScoreSchema`, `MatchScore`, `MatchTeam` | A player's score: `{ userId, slot, team, score, accuracy, maxCombo, misses, mods, passed }`. `team` is `"red"`, `"blue"` or `"none"`, `accuracy` 0 to 1, and `mods` are uppercase acronyms. It reads osu!'s newer score format too (mod objects, `total_score`, `statistics.miss`). |
+| `MATCH_SCORING_TYPES`, `MATCH_TEAM_TYPES` | The values osu! sends as `scoringType` (`score`, `accuracy`, `combo`, `scorev2`) and `teamType` (`head-to-head`, `tag-coop`, `team-vs`, `tag-team-vs`). Both stay plain strings in the types, since osu! may add more. |
 | `coverUrl`, `CoverSize`, `beatmapUrl`, `beatmapsetUrl`, `userUrl` | osu! pages, and cover art on assets.ppy.sh. `coverUrl(setId, size)` takes `"card"` (the default), `"card@2x"`, `"list"`, `"list@2x"`, `"cover"` or `"cover@2x"`. |
 
 `BeatmapMeta` fields, and the osu! row field each comes from:
@@ -408,13 +429,85 @@ export const starSpan = (low: number, high: number) => formatRange(low, high, fo
 
 They don't check their input. Pass finite numbers of zero or more: a `NaN` shows up as `NaN` in the text.
 
+## Match
+
+`@haruhimemoe/osu/match` reads results out of an `OsuMatch` from `getMatch`. Pure functions with no zod at runtime, so they run in browsers too. They apply no tournament rules beyond warmups: no pick order, no tiebreakers.
+
+```ts
+import { gameWinner, listGames, mapWins } from "@haruhimemoe/osu/match";
+import { osu } from "./osu.js";
+
+const result = await osu.getMatch("https://osu.ppy.sh/community/matches/111");
+if (result) {
+  const games = listGames(result.match, { warmups: 2 });
+  for (const game of games) console.log(game.beatmapId, gameWinner(game).winner); // "red", "blue", or null on a tie
+  const wins = mapWins(result.match, { warmups: 2 }); // Map { "red" => 5, "blue" => 3 }
+}
+```
+
+| Function | Returns |
+| --- | --- |
+| `matchGames(match)` | Every game, in event order, whatever its status. |
+| `gameStatus(game, later)` | `"in_progress"`, `"aborted"` or `"completed"`. A game with no end time is in progress, unless `later` is true (another game started after it), which makes it aborted. A game that ended with no scores is aborted. osu! has no abort flag, so a game aborted after some scores came in reads as completed. |
+| `listGames(match, { warmups })` | The completed games, in order, without the first `warmups` of them (default 0). Aborted games don't count toward warmups. Throws `RangeError` when `warmups` isn't a non-negative integer. |
+| `isTeamGame(game)` | True for `team-vs` and `tag-team-vs`. |
+| `gameWinner(game, { by, passedOnly })` | `{ winner, totals }`. In a team game the sides are `"red"` and `"blue"`, and scores on team `"none"` are left out; otherwise each side is a user id. `by` is `"score"` (default: the room's own scoring, so score v2 when the room used it, summed per side), `"accuracy"` (averaged per side) or `"combo"` (max combos summed). `passedOnly` (default false) leaves out failed scores. `winner` is null on a tie or with no scores. |
+| `mapWins(match, options)` | Maps won per side over `listGames(match, options)`, judged by `gameWinner(game, options)`. Tied games count for nobody, and a side with no wins isn't in the map. |
+
+Types: `MatchSide` (`"red" | "blue" | number`), `GameStatus`, `WinCondition`, `GameWinnerOptions`, `ListGamesOptions`, `MapWinsOptions`, `GameResult`.
+
+## Tournament
+
+`@haruhimemoe/osu/tournament` writes `bracket.json` for the [osu!lazer tournament client](https://osu.ppy.sh/wiki/en/osu!_tournament_client/osu!lazer). Give it plain data and save `json` as `bracket.json` in the client's tournament folder. Pure, safe in browsers.
+
+```ts
+import { buildLazerBracket } from "@haruhimemoe/osu/tournament";
+
+const { json } = buildLazerBracket({
+  ruleset: "osu",
+  teams: [
+    { name: "Japan", acronym: "JPN", flag: "JP", seed: 1, players: [{ id: 124493 }] },
+    { name: "United States", acronym: "USA", flag: "US", players: [{ id: 2, username: "peppy" }] },
+  ],
+  rounds: [
+    {
+      name: "Grand Finals",
+      bestOf: 13,
+      startDate: "2026-12-12T00:00:00Z",
+      beatmaps: [{ id: 75, mods: "NM" }, { id: 129891, mods: "HD" }],
+    },
+  ],
+  matches: [
+    { id: 1, round: "Grand Finals", team1: "JPN", team2: "USA", date: "2026-12-12T18:00:00Z", current: true },
+  ],
+});
+```
+
+What goes where:
+
+| Input | In `bracket.json` |
+| --- | --- |
+| `ruleset` | `Ruleset` (`ShortName`, `OnlineID`, `Name`). lazer finds the ruleset by `ShortName`. |
+| `teams[]`: `name`, `acronym`, `flag`, `seed`, `lastYearPlacing`, `players` | `Teams[]`: `FullName`, `Acronym`, `FlagName` (default `""`), `Seed` (a string, default `""`), `LastYearPlacing` (default `"N/A"`), `Players`, and an empty `SeedingResults`. |
+| `players[]`: `id`, `username`, `country`, `rank` | `id`, `Username`, `country_code` (uppercased), `Rank`. Only `id` is required: lazer looks up a missing name, country or rank from osu! when it loads the file. |
+| `rounds[]`: `name`, `description`, `bestOf`, `banCount`, `startDate`, `beatmaps` | `Rounds[]`: `Name`, `Description`, `BestOf` (default 9), `BanCount` (default 1), `StartDate`, `Beatmaps` (`ID`, `Mods`), and `Matches`, the ids of the matches that name this round. lazer fetches each map's details by `ID`. |
+| `matches[]`: `id`, `round`, `team1`, `team2`, `team1Score`, `team2Score`, `completed`, `losers`, `current`, `date`, `position` | `Matches[]`: `ID`, `Team1Acronym`, `Team2Acronym`, `Team1Score`, `Team2Score`, `Completed`, `Losers`, `Current`, `Date`, `Position` (`X`, `Y`, default 0), and empty `PicksBans` and `ConditionalMatches`. A side or score you leave out is left out of the file, as lazer does. |
+| `matches[]`: `winnerTo`, `loserTo` | `Progressions[]`: `{ SourceID, TargetID }`, with `Losers: true` for `loserTo`. These only record where each match leads; nothing is decided for you. |
+| `settings`: `chromaKeyWidth`, `playersPerTeam`, `autoProgressScreens`, `splitMapPoolByMods`, `displayTeamSeeds` | `ChromaKeyWidth` (default 1024), `PlayersPerTeam` (4), `AutoProgressScreens` (true), `SplitMapPoolByMods` (true), `DisplayTeamSeeds` (false). |
+
+Dates take an ISO string or a `Date` and are written in UTC (`2026-12-12T18:00:00+00:00`). It throws a `TypeError` for an unknown ruleset, a duplicate team acronym, round name or match id, a player or match id that isn't an integer, a match naming a round or team that isn't there (acronyms are compared with case, like lazer does), a `winnerTo` or `loserTo` naming a match that isn't there, or a date it can't read. It never changes its input. It returns `{ bracket, json }`: the object, and its text indented with a trailing newline. `LAZER_BRACKET_FILENAME` is `"bracket.json"`.
+
+Types: `BracketInput`, `BracketTeam`, `BracketPlayer`, `BracketRound`, `BracketBeatmap`, `BracketMatch`, `BracketSettings`, and the output's `LazerBracket`, `LazerBracketTeam`, `LazerBracketPlayer`, `LazerBracketRound`, `LazerBracketMatch`.
+
+There's no helper for the osu!stable tournament client: its `tournament.cfg` keys are listed on the [setup page](https://osu.ppy.sh/wiki/en/osu!_tournament_client/osu!tourney/Setup) without their types or defaults, so set it up by hand from there.
+
 ## Compatibility
 
 - **Node** 22.12 or later. CI runs the built package on Node 22.12 and 24.
 - **Bun** runs it too. CI tests on Node only.
-- **Browsers:** import only `@haruhimemoe/osu/shapes`, `@haruhimemoe/osu/collections` and `@haruhimemoe/osu/format`. Keep `createOsuClient` on a server, since it holds your client secret. The client uses web-standard APIs (`fetch`, `AbortSignal.timeout`, `URL`) and no Node built-ins. `/collections` uses only `TextEncoder`, `TextDecoder` and `DataView`.
+- **Browsers:** import only `@haruhimemoe/osu/shapes`, `@haruhimemoe/osu/collections`, `@haruhimemoe/osu/format`, `@haruhimemoe/osu/match` and `@haruhimemoe/osu/tournament`. Keep `createOsuClient` on a server, since it holds your client secret. The client uses web-standard APIs (`fetch`, `AbortSignal.timeout`, `URL`) and no Node built-ins. `/collections` uses only `TextEncoder`, `TextDecoder` and `DataView`.
 - **`zod`** is a peer dependency, `^4.0.16`. CI checks a consumer against zod 4.0.16 and the newest release.
-- **TypeScript:** your config needs the `DOM` lib or `@types/node`, since the client's types use `URL`, `Response` and `RequestInit`, and zod's own types use `URL`. `moduleResolution` must be `node16`, `nodenext` or `bundler`: `@haruhimemoe/osu/shapes`, `@haruhimemoe/osu/collections` and `@haruhimemoe/osu/format` resolve only through the package's `exports` map, which the legacy `node` (`node10`) setting ignores. The `/collections` types use `Uint8Array<ArrayBuffer>`, which needs TypeScript 5.7 or later. The root entry point re-exports `/collections`, so importing anything from `@haruhimemoe/osu`, even just `createOsuClient`, needs TypeScript 5.7 too. On older TypeScript, set `skipLibCheck: true`. `@haruhimemoe/osu/shapes` and `@haruhimemoe/osu/format` work either way.
+- **TypeScript:** your config needs the `DOM` lib or `@types/node`, since the client's types use `URL`, `Response` and `RequestInit`, and zod's own types use `URL`. `moduleResolution` must be `node16`, `nodenext` or `bundler`: the subpaths (`/shapes`, `/collections`, `/format`, `/match`, `/tournament`) resolve only through the package's `exports` map, which the legacy `node` (`node10`) setting ignores. The `/collections` types use `Uint8Array<ArrayBuffer>`, which needs TypeScript 5.7 or later. The root entry point re-exports `/collections`, so importing anything from `@haruhimemoe/osu`, even just `createOsuClient`, needs TypeScript 5.7 too. On older TypeScript, set `skipLibCheck: true`. `@haruhimemoe/osu/shapes`, `/format`, `/match` and `/tournament` work either way.
 
 ## License
 

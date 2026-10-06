@@ -4,7 +4,7 @@
  *       anything is sent. Messages name a field, never a credential's value.
  * @author David @dvhsh (https://dvh.sh)
  * @created Mon Sep 28, 2026
- * @modified Mon Sep 28, 2026
+ * @modified Tue Oct 6, 2026
  */
 
 import { OSU_BASE_URL } from "../shapes/links.js";
@@ -16,6 +16,10 @@ export const OSU_BEATMAPS_BATCH_LIMIT = 50;
 export const OSU_BEATMAPSET_FALLBACK_LIMIT = 10;
 /** @deprecated Use OSU_BEATMAPSET_FALLBACK_LIMIT, the same value under its prefixed name. */
 export const BEATMAPSET_FALLBACK_LIMIT = OSU_BEATMAPSET_FALLBACK_LIMIT;
+/** Events asked for per GET /api/v2/matches/{id} page (osu!'s default). */
+export const OSU_MATCH_EVENTS_LIMIT = 100;
+/** Default cap on pages per getMatch call: 50 pages, 5,000 events. */
+export const OSU_MATCH_PAGE_LIMIT = 50;
 /** Default time a single request may take. */
 export const OSU_TIMEOUT_MS = 10_000;
 /** The longest delay setTimeout (and so AbortSignal.timeout) takes. */

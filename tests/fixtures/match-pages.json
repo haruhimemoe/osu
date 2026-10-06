@@ -1,0 +1,581 @@
+{
+  "newer": {
+    "match": {
+      "id": 111,
+      "start_time": "2026-10-03T18:00:00+00:00",
+      "end_time": "2026-10-03T18:59:00+00:00",
+      "name": "EGC: (Red Team) vs (Blue Team)"
+    },
+    "events": [
+      {
+        "id": 5,
+        "detail": {
+          "type": "other",
+          "text": "EGC: (Red Team) vs (Blue Team)"
+        },
+        "timestamp": "2026-10-03T18:20:00+00:00",
+        "user_id": null,
+        "game": {
+          "beatmap_id": 75,
+          "id": 1005,
+          "start_time": "2026-10-03T18:16:00+00:00",
+          "end_time": "2026-10-03T18:20:00+00:00",
+          "match_id": 111,
+          "mode": "osu",
+          "mode_int": 0,
+          "scoring_type": "scorev2",
+          "team_type": "team-vs",
+          "mods": ["NF"],
+          "beatmap": {
+            "beatmapset_id": 750,
+            "difficulty_rating": 5.5,
+            "id": 75,
+            "mode": "osu",
+            "status": "ranked",
+            "total_length": 120,
+            "user_id": 2,
+            "version": "Insane",
+            "beatmapset": {
+              "artist": "a",
+              "title": "t",
+              "id": 750
+            }
+          },
+          "scores": [
+            {
+              "accuracy": 0.98,
+              "best_id": null,
+              "created_at": "2026-10-03T18:00:00+00:00",
+              "id": null,
+              "max_combo": 800,
+              "mode": "osu",
+              "mode_int": 0,
+              "mods": ["NF", "HD"],
+              "passed": true,
+              "perfect": 0,
+              "pp": null,
+              "rank": "A",
+              "replay": false,
+              "score": 900000,
+              "statistics": {
+                "count_100": 10,
+                "count_300": 500,
+                "count_50": 0,
+                "count_geki": 50,
+                "count_katu": 5,
+                "count_miss": 1
+              },
+              "type": "legacy_match_score",
+              "user_id": 2,
+              "match": {
+                "slot": 0,
+                "team": "red",
+                "pass": true
+              }
+            },
+            {
+              "accuracy": 0.97,
+              "best_id": null,
+              "created_at": "2026-10-03T18:00:00+00:00",
+              "id": null,
+              "max_combo": 700,
+              "mode": "osu",
+              "mode_int": 0,
+              "mods": ["NF"],
+              "passed": true,
+              "perfect": 0,
+              "pp": null,
+              "rank": "A",
+              "replay": false,
+              "score": 800000,
+              "statistics": {
+                "count_100": 10,
+                "count_300": 500,
+                "count_50": 0,
+                "count_geki": 50,
+                "count_katu": 5,
+                "count_miss": 2
+              },
+              "type": "legacy_match_score",
+              "user_id": 124493,
+              "match": {
+                "slot": 1,
+                "team": "blue",
+                "pass": true
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": 6,
+        "detail": {
+          "type": "other",
+          "text": "EGC: (Red Team) vs (Blue Team)"
+        },
+        "timestamp": "2026-10-03T18:25:00+00:00",
+        "user_id": null,
+        "game": {
+          "beatmap_id": 76,
+          "id": 1006,
+          "start_time": "2026-10-03T18:21:00+00:00",
+          "end_time": "2026-10-03T18:25:00+00:00",
+          "match_id": 111,
+          "mode": "osu",
+          "mode_int": 0,
+          "scoring_type": "scorev2",
+          "team_type": "team-vs",
+          "mods": ["NF"],
+          "beatmap": {
+            "beatmapset_id": 760,
+            "difficulty_rating": 5.5,
+            "id": 76,
+            "mode": "osu",
+            "status": "ranked",
+            "total_length": 120,
+            "user_id": 2,
+            "version": "Insane",
+            "beatmapset": {
+              "artist": "a",
+              "title": "t",
+              "id": 760
+            }
+          },
+          "scores": [
+            {
+              "accuracy": 0.98,
+              "best_id": null,
+              "created_at": "2026-10-03T18:00:00+00:00",
+              "id": null,
+              "max_combo": 800,
+              "mode": "osu",
+              "mode_int": 0,
+              "mods": ["NF", "HD"],
+              "passed": false,
+              "perfect": 0,
+              "pp": null,
+              "rank": "A",
+              "replay": false,
+              "score": 700000,
+              "statistics": {
+                "count_100": 10,
+                "count_300": 500,
+                "count_50": 0,
+                "count_geki": 50,
+                "count_katu": 5,
+                "count_miss": 1
+              },
+              "type": "legacy_match_score",
+              "user_id": 2,
+              "match": {
+                "slot": 0,
+                "team": "red",
+                "pass": false
+              }
+            },
+            {
+              "accuracy": 0.97,
+              "best_id": null,
+              "created_at": "2026-10-03T18:00:00+00:00",
+              "id": null,
+              "max_combo": 700,
+              "mode": "osu",
+              "mode_int": 0,
+              "mods": ["NF"],
+              "passed": true,
+              "perfect": 0,
+              "pp": null,
+              "rank": "A",
+              "replay": false,
+              "score": 750000,
+              "statistics": {
+                "count_100": 10,
+                "count_300": 500,
+                "count_50": 0,
+                "count_geki": 50,
+                "count_katu": 5,
+                "count_miss": 2
+              },
+              "type": "legacy_match_score",
+              "user_id": 124493,
+              "match": {
+                "slot": 1,
+                "team": "blue",
+                "pass": true
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": 7,
+        "detail": {
+          "type": "other",
+          "text": "EGC: (Red Team) vs (Blue Team)"
+        },
+        "timestamp": "2026-10-03T18:26:00+00:00",
+        "user_id": null,
+        "game": {
+          "beatmap_id": 77,
+          "id": 1007,
+          "start_time": "2026-10-03T18:26:00+00:00",
+          "end_time": null,
+          "match_id": 111,
+          "mode": "osu",
+          "mode_int": 0,
+          "scoring_type": "scorev2",
+          "team_type": "team-vs",
+          "mods": ["NF"],
+          "beatmap": {
+            "beatmapset_id": 770,
+            "difficulty_rating": 5.5,
+            "id": 77,
+            "mode": "osu",
+            "status": "ranked",
+            "total_length": 120,
+            "user_id": 2,
+            "version": "Insane",
+            "beatmapset": {
+              "artist": "a",
+              "title": "t",
+              "id": 770
+            }
+          },
+          "scores": []
+        }
+      },
+      {
+        "id": 8,
+        "detail": {
+          "type": "other",
+          "text": "EGC: (Red Team) vs (Blue Team)"
+        },
+        "timestamp": "2026-10-03T18:31:00+00:00",
+        "user_id": null,
+        "game": {
+          "beatmap_id": 77,
+          "id": 1008,
+          "start_time": "2026-10-03T18:27:00+00:00",
+          "end_time": "2026-10-03T18:31:00+00:00",
+          "match_id": 111,
+          "mode": "osu",
+          "mode_int": 0,
+          "scoring_type": "scorev2",
+          "team_type": "team-vs",
+          "mods": ["NF"],
+          "beatmap": {
+            "beatmapset_id": 770,
+            "difficulty_rating": 5.5,
+            "id": 77,
+            "mode": "osu",
+            "status": "ranked",
+            "total_length": 120,
+            "user_id": 2,
+            "version": "Insane",
+            "beatmapset": {
+              "artist": "a",
+              "title": "t",
+              "id": 770
+            }
+          },
+          "scores": [
+            {
+              "accuracy": 0.95,
+              "best_id": null,
+              "created_at": "2026-10-03T18:00:00+00:00",
+              "id": null,
+              "max_combo": 900,
+              "mode": "osu",
+              "mode_int": 0,
+              "mods": ["NF", "HD"],
+              "passed": true,
+              "perfect": 0,
+              "pp": null,
+              "rank": "A",
+              "replay": false,
+              "score": 650000,
+              "statistics": {
+                "count_100": 10,
+                "count_300": 500,
+                "count_50": 0,
+                "count_geki": 50,
+                "count_katu": 5,
+                "count_miss": 1
+              },
+              "type": "legacy_match_score",
+              "user_id": 2,
+              "match": {
+                "slot": 0,
+                "team": "red",
+                "pass": true
+              }
+            },
+            {
+              "accuracy": 0.99,
+              "best_id": null,
+              "created_at": "2026-10-03T18:00:00+00:00",
+              "id": null,
+              "max_combo": 600,
+              "mode": "osu",
+              "mode_int": 0,
+              "mods": ["NF"],
+              "passed": true,
+              "perfect": 0,
+              "pp": null,
+              "rank": "A",
+              "replay": false,
+              "score": 640000,
+              "statistics": {
+                "count_100": 10,
+                "count_300": 500,
+                "count_50": 0,
+                "count_geki": 50,
+                "count_katu": 5,
+                "count_miss": 2
+              },
+              "type": "legacy_match_score",
+              "user_id": 124493,
+              "match": {
+                "slot": 1,
+                "team": "blue",
+                "pass": true
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": 9,
+        "detail": {
+          "type": "match-disbanded"
+        },
+        "timestamp": "2026-10-03T18:59:00+00:00",
+        "user_id": null
+      }
+    ],
+    "users": [
+      {
+        "avatar_url": "https://a.ppy.sh/2",
+        "country_code": "AU",
+        "default_group": "default",
+        "id": 2,
+        "is_active": true,
+        "is_bot": false,
+        "is_deleted": false,
+        "is_online": false,
+        "is_supporter": true,
+        "last_visit": null,
+        "pm_friends_only": false,
+        "profile_colour": null,
+        "username": "peppy",
+        "country": {
+          "code": "AU",
+          "name": "Australia"
+        }
+      },
+      {
+        "avatar_url": "https://a.ppy.sh/124493",
+        "country_code": "KR",
+        "id": 124493,
+        "username": "Cookiezi",
+        "country": {
+          "code": "KR",
+          "name": "South Korea"
+        }
+      }
+    ],
+    "first_event_id": 1,
+    "latest_event_id": 9,
+    "current_game_id": null
+  },
+  "older": {
+    "match": {
+      "id": 111,
+      "start_time": "2026-10-03T18:00:00+00:00",
+      "end_time": "2026-10-03T18:59:00+00:00",
+      "name": "EGC: (Red Team) vs (Blue Team)"
+    },
+    "events": [
+      {
+        "id": 1,
+        "detail": {
+          "type": "match-created"
+        },
+        "timestamp": "2026-10-03T18:00:00+00:00",
+        "user_id": 2
+      },
+      {
+        "id": 2,
+        "detail": {
+          "type": "player-joined"
+        },
+        "timestamp": "2026-10-03T18:01:00+00:00",
+        "user_id": 2
+      },
+      {
+        "id": 3,
+        "detail": {
+          "type": "other",
+          "text": "EGC: (Red Team) vs (Blue Team)"
+        },
+        "timestamp": "2026-10-03T18:10:00+00:00",
+        "user_id": null,
+        "game": {
+          "beatmap_id": 74,
+          "id": 1003,
+          "start_time": "2026-10-03T18:05:00+00:00",
+          "end_time": "2026-10-03T18:10:00+00:00",
+          "match_id": 111,
+          "mode": "osu",
+          "mode_int": 0,
+          "scoring_type": "scorev2",
+          "team_type": "team-vs",
+          "mods": ["NF"],
+          "beatmap": {
+            "beatmapset_id": 740,
+            "difficulty_rating": 5.5,
+            "id": 74,
+            "mode": "osu",
+            "status": "ranked",
+            "total_length": 120,
+            "user_id": 2,
+            "version": "Insane",
+            "beatmapset": {
+              "artist": "a",
+              "title": "t",
+              "id": 740
+            }
+          },
+          "scores": [
+            {
+              "accuracy": 0.98,
+              "best_id": null,
+              "created_at": "2026-10-03T18:00:00+00:00",
+              "id": null,
+              "max_combo": 800,
+              "mode": "osu",
+              "mode_int": 0,
+              "mods": ["NF", "HD"],
+              "passed": true,
+              "perfect": 0,
+              "pp": null,
+              "rank": "A",
+              "replay": false,
+              "score": 500000,
+              "statistics": {
+                "count_100": 10,
+                "count_300": 500,
+                "count_50": 0,
+                "count_geki": 50,
+                "count_katu": 5,
+                "count_miss": 1
+              },
+              "type": "legacy_match_score",
+              "user_id": 2,
+              "match": {
+                "slot": 0,
+                "team": "red",
+                "pass": true
+              }
+            },
+            {
+              "accuracy": 0.97,
+              "best_id": null,
+              "created_at": "2026-10-03T18:00:00+00:00",
+              "id": null,
+              "max_combo": 700,
+              "mode": "osu",
+              "mode_int": 0,
+              "mods": ["NF"],
+              "passed": true,
+              "perfect": 0,
+              "pp": null,
+              "rank": "A",
+              "replay": false,
+              "score": 600000,
+              "statistics": {
+                "count_100": 10,
+                "count_300": 500,
+                "count_50": 0,
+                "count_geki": 50,
+                "count_katu": 5,
+                "count_miss": 2
+              },
+              "type": "legacy_match_score",
+              "user_id": 124493,
+              "match": {
+                "slot": 1,
+                "team": "blue",
+                "pass": true
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": 4,
+        "detail": {
+          "type": "other",
+          "text": "EGC: (Red Team) vs (Blue Team)"
+        },
+        "timestamp": "2026-10-03T18:15:00+00:00",
+        "user_id": null,
+        "game": {
+          "beatmap_id": 75,
+          "id": 1004,
+          "start_time": "2026-10-03T18:11:00+00:00",
+          "end_time": "2026-10-03T18:15:00+00:00",
+          "match_id": 111,
+          "mode": "osu",
+          "mode_int": 0,
+          "scoring_type": "scorev2",
+          "team_type": "team-vs",
+          "mods": ["NF"],
+          "beatmap": {
+            "beatmapset_id": 750,
+            "difficulty_rating": 5.5,
+            "id": 75,
+            "mode": "osu",
+            "status": "ranked",
+            "total_length": 120,
+            "user_id": 2,
+            "version": "Insane",
+            "beatmapset": {
+              "artist": "a",
+              "title": "t",
+              "id": 750
+            }
+          },
+          "scores": []
+        }
+      }
+    ],
+    "users": [
+      {
+        "avatar_url": "https://a.ppy.sh/2",
+        "country_code": "AU",
+        "default_group": "default",
+        "id": 2,
+        "is_active": true,
+        "is_bot": false,
+        "is_deleted": false,
+        "is_online": false,
+        "is_supporter": true,
+        "last_visit": null,
+        "pm_friends_only": false,
+        "profile_colour": null,
+        "username": "peppy",
+        "country": {
+          "code": "AU",
+          "name": "Australia"
+        }
+      },
+      {
+        "id": 4
+      }
+    ],
+    "first_event_id": 1,
+    "latest_event_id": 9,
+    "current_game_id": null
+  }
+}

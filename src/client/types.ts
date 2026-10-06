@@ -4,11 +4,12 @@
  *       each method's options and result.
  * @author David @dvhsh (https://dvh.sh)
  * @created Tue Sep 22, 2026
- * @modified Mon Sep 28, 2026
+ * @modified Tue Oct 6, 2026
  */
 
 import type { BeatmapMeta, Ruleset } from "../shapes/beatmap.js";
 import type { OsuBeatmapsetExtended } from "../shapes/beatmapset.js";
+import type { OsuMatch } from "../shapes/match.js";
 import type { OsuUser } from "../shapes/user.js";
 
 /** An OAuth app's id and secret, from osu.ppy.sh/home/account/edit#oauth. */
@@ -100,3 +101,15 @@ export type UserLookup = {
   missing: number[];
   unchecked: number[];
 };
+
+/** Options for getMatch. */
+export type MatchOptions = BeatmapOptions & {
+  /** At most this many pages of 100 events per call. Default OSU_MATCH_PAGE_LIMIT (50). */
+  maxPages?: number | undefined;
+};
+
+/**
+ * A match and whether it's whole: `complete` is false when maxPages ran out or beforeCall refused
+ * a page, and `match.events` then holds only the newest events.
+ */
+export type MatchLookup = { match: OsuMatch; complete: boolean };

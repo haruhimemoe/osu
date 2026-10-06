@@ -2,11 +2,12 @@
  * @file scripts/smoke.mjs
  * @desc Imports the built package the way apps will: every entry point, the client talking to a
  *       stub fetch (token, then beatmaps), /shapes without the client, /collections writing and
- *       reading TV2 with Node's Buffer hidden, as in a browser, and /format. Run by
+ *       reading TV2 with Node's Buffer hidden, as in a browser, /format, a paged match with
+ *       /match, and /tournament. Run by
  *       `bun run test:dist` after a build.
  * @author David @dvhsh (https://dvh.sh)
  * @created Wed Sep 23, 2026
- * @modified Mon Sep 28, 2026
+ * @modified Tue Oct 6, 2026
  */
 
 import assert from "node:assert/strict";
@@ -14,7 +15,9 @@ import { readFileSync } from "node:fs";
 import * as collections from "../dist/collections/index.js";
 import * as format from "../dist/format/index.js";
 import { createOsuClient, formatStars, readCollectionDb } from "../dist/index.js";
+import * as match from "../dist/match/index.js";
 import * as shapes from "../dist/shapes/index.js";
+import * as tournament from "../dist/tournament/index.js";
 
 const fixture = JSON.parse(
   readFileSync(new URL("../tests/fixtures/beatmaps.json", import.meta.url)),
@@ -81,4 +84,34 @@ assert.equal(formatStars, format.formatStars, "the root re-exports /format");
 assert.equal(format.formatDuration(258), "4:18");
 assert.equal(format.formatRange(4.5, 6.2, format.formatStars), "4.50–6.20");
 assert.equal("createOsuClient" in format, false, "/format has no client");
+const pages = JSON.parse(
+  readFileSync(new URL("../tests/fixtures/match-pages.json", import.meta.url)),
+);
+const matchClient = createOsuClient({
+  userAgent: "smoke",
+  credentials: { clientId: "1", clientSecret: "s" },
+  fetch: async (input) => {
+    const url = new URL(input);
+    if (url.pathname === "/oauth/token") {
+      return Response.json({ access_token: "t", expires_in: 86400 });
+    }
+    return Response.json(url.searchParams.has("before") ? pages.older : pages.newer);
+  },
+});
+const lookup = await matchClient.getMatch("https://osu.ppy.sh/community/matches/111");
+assert.equal(lookup?.complete, true);
+assert.deepEqual([...match.mapWins(lookup.match, { warmups: 1 })].sort(), [
+  ["blue", 1],
+  ["red", 2],
+]);
+assert.equal(shapes.parseMatchId("osu.ppy.sh/mp/111"), 111);
+assert.equal("createOsuClient" in match, false, "/match has no client");
+const { json } = tournament.buildLazerBracket({
+  ruleset: "osu",
+  teams: [],
+  rounds: [],
+  matches: [],
+});
+assert.equal(JSON.parse(json).Ruleset.ShortName, "osu");
+assert.equal("createOsuClient" in tournament, false, "/tournament has no client");
 console.log("smoke: ok");

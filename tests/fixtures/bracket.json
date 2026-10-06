@@ -1,0 +1,129 @@
+{
+  "Ruleset": {
+    "ShortName": "osu",
+    "OnlineID": 0,
+    "Name": "osu!"
+  },
+  "Matches": [
+    {
+      "ID": 1,
+      "Team1Acronym": "RED",
+      "Team2Acronym": "BLU",
+      "Team1Score": 5,
+      "Team2Score": 3,
+      "Completed": true,
+      "Losers": false,
+      "PicksBans": [],
+      "Current": false,
+      "Date": "2026-10-10T18:00:00+00:00",
+      "ConditionalMatches": [],
+      "Position": {
+        "X": 160,
+        "Y": 100
+      }
+    },
+    {
+      "ID": 2,
+      "Team1Acronym": "RED",
+      "Completed": false,
+      "Losers": false,
+      "PicksBans": [],
+      "Current": true,
+      "Date": "2026-10-17T18:00:00+00:00",
+      "ConditionalMatches": [],
+      "Position": {
+        "X": 560,
+        "Y": 100
+      }
+    },
+    {
+      "ID": 3,
+      "Team1Acronym": "BLU",
+      "Completed": false,
+      "Losers": true,
+      "PicksBans": [],
+      "Current": false,
+      "Date": "2026-10-17T20:00:00+00:00",
+      "ConditionalMatches": [],
+      "Position": {
+        "X": 0,
+        "Y": 0
+      }
+    }
+  ],
+  "Rounds": [
+    {
+      "Name": "Semifinals",
+      "Description": "Week 1",
+      "BestOf": 9,
+      "BanCount": 1,
+      "Beatmaps": [
+        {
+          "ID": 75,
+          "Mods": "NM"
+        },
+        {
+          "ID": 129891,
+          "Mods": "HD"
+        }
+      ],
+      "StartDate": "2026-10-10T00:00:00+00:00",
+      "Matches": [1]
+    },
+    {
+      "Name": "Finals",
+      "Description": "",
+      "BestOf": 13,
+      "BanCount": 2,
+      "Beatmaps": [],
+      "StartDate": "2026-10-17T00:00:00+00:00",
+      "Matches": [2, 3]
+    }
+  ],
+  "Teams": [
+    {
+      "FullName": "Red Team",
+      "FlagName": "JP",
+      "Acronym": "RED",
+      "SeedingResults": [],
+      "Seed": "1",
+      "LastYearPlacing": "#2",
+      "Players": [
+        {
+          "id": 2,
+          "Username": "peppy",
+          "country_code": "AU",
+          "Rank": 1000
+        },
+        {
+          "id": 3
+        }
+      ]
+    },
+    {
+      "FullName": "Blue Team",
+      "FlagName": "",
+      "Acronym": "BLU",
+      "SeedingResults": [],
+      "Seed": "",
+      "LastYearPlacing": "N/A",
+      "Players": []
+    }
+  ],
+  "Progressions": [
+    {
+      "SourceID": 1,
+      "TargetID": 2
+    },
+    {
+      "SourceID": 1,
+      "TargetID": 3,
+      "Losers": true
+    }
+  ],
+  "ChromaKeyWidth": 1024,
+  "PlayersPerTeam": 2,
+  "AutoProgressScreens": true,
+  "SplitMapPoolByMods": true,
+  "DisplayTeamSeeds": false
+}

@@ -2,12 +2,12 @@
  * @file src/client/client.ts
  * @desc createOsuClient: the osu! API v2 client for servers (client credentials, scope public):
  *       beatmap metadata, beatmapsets with their content fields (with a capped /beatmapsets/{id}
- *       fallback for compact ones), star ratings with mods, and users (src/client/users.ts). Every request sends your
+ *       fallback for compact ones), star ratings with mods, users (src/client/users.ts) and multiplayer matches (src/client/matches.ts). Every request sends your
  *       User-Agent and gives up after timeoutMs. Every failure talking to osu! is an OsuApiError.
  *       Keep the client secret on the server.
  * @author David @dvhsh (https://dvh.sh)
  * @created Tue Sep 22, 2026
- * @modified Mon Sep 28, 2026
+ * @modified Tue Oct 6, 2026
  */
 
 import { z } from "zod";
@@ -21,6 +21,7 @@ import {
 } from "../shapes/beatmapset.js";
 import { OsuApiError } from "./errors.js";
 import { createTransport, release } from "./http.js";
+import { createMatchLookups } from "./matches.js";
 import { isId, OSU_BEATMAPSET_FALLBACK_LIMIT, resolveOptions } from "./options.js";
 import { fetchRows } from "./rows.js";
 import { createAuthorizer } from "./token.js";
@@ -44,7 +45,7 @@ const alwaysCall = async (): Promise<boolean> => true;
  * @function createOsuClient
  * @param options {OsuClientOptions} credentials, User-Agent, and optional base URL, timeout,
  *        fetch and clock
- * @returns {{ getBeatmaps, getBeatmapsets, getStarRating, getUser, getUsers }} the client;
+ * @returns {{ getBeatmaps, getBeatmapsets, getStarRating, getUser, getUsers, getMatch }} the client;
  *          create one per process and reuse it so the token is shared
  * @throws {TypeError} when userAgent is blank or holds anything but printable ASCII, or
  *         credentials given as an object aren't two non-empty strings
@@ -120,6 +121,7 @@ export const createOsuClient = (options: OsuClientOptions) => {
 
   return {
     ...createUserLookups({ baseUrl, authorized, transport }),
+    ...createMatchLookups({ baseUrl, authorized, transport }),
 
     /**
      * @function getBeatmaps

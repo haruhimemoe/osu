@@ -3,11 +3,12 @@
  * @desc The public surface of every entry point, so an accidental export or removal shows up in
  *       review as a semver question; /shapes never grows client code, /collections stays a
  *       browser-safe codec that imports nothing at runtime from outside src/collections/, and
- *       /format holds only formatters that import nothing. Type exports are pinned in
+ *       /format holds only formatters that import nothing; /match and /tournament import nothing at
+ *       runtime either. Type exports are pinned in
  *       tests/types.test.ts.
  * @author David @dvhsh (https://dvh.sh)
  * @created Wed Sep 23, 2026
- * @modified Mon Sep 28, 2026
+ * @modified Tue Oct 6, 2026
  */
 
 import { readdirSync, readFileSync } from "node:fs";
@@ -15,7 +16,9 @@ import { expect, it } from "vitest";
 import * as collections from "../src/collections/index.js";
 import * as format from "../src/format/index.js";
 import * as api from "../src/index.js";
+import * as match from "../src/match/index.js";
 import * as shapes from "../src/shapes/index.js";
+import * as tournament from "../src/tournament/index.js";
 
 it("exports the documented runtime API", () => {
   expect(Object.keys(api).sort()).toMatchInlineSnapshot(`
@@ -24,11 +27,16 @@ it("exports the documented runtime API", () => {
       "COLLECTION_DB_FILENAME",
       "CollectionDbError",
       "DEFAULT_COLLECTION_DB_VERSION",
+      "LAZER_BRACKET_FILENAME",
+      "MATCH_SCORING_TYPES",
+      "MATCH_TEAM_TYPES",
       "MAX_COLLECTION_DB_BYTES",
       "MAX_COLLECTION_NAME_BYTES",
       "OSU_BASE_URL",
       "OSU_BEATMAPSET_FALLBACK_LIMIT",
       "OSU_BEATMAPS_BATCH_LIMIT",
+      "OSU_MATCH_EVENTS_LIMIT",
+      "OSU_MATCH_PAGE_LIMIT",
       "OSU_OAUTH",
       "OSU_SIGN_IN_SCOPES",
       "OSU_TIMEOUT_MS",
@@ -38,6 +46,7 @@ it("exports the documented runtime API", () => {
       "beatmapMetaSchema",
       "beatmapUrl",
       "beatmapsetUrl",
+      "buildLazerBracket",
       "collectionHashesFor",
       "coverUrl",
       "createCollectionDb",
@@ -49,17 +58,30 @@ it("exports the documented runtime API", () => {
       "formatRange",
       "formatStars",
       "formatStat",
+      "gameStatus",
+      "gameWinner",
       "isExtendedBeatmapset",
+      "isTeamGame",
       "lazerImportFiles",
+      "listGames",
+      "mapWins",
+      "matchGames",
       "mergeCollections",
       "normalizeHash",
       "osuBeatmapRowSchema",
       "osuBeatmapsetRowSchema",
       "osuBeatmapsetSchema",
+      "osuMatchEventSchema",
+      "osuMatchGameSchema",
+      "osuMatchResponseSchema",
+      "osuMatchScoreSchema",
       "osuUserSchema",
+      "parseMatchId",
       "readCollectionDb",
       "rulesetSchema",
       "toBeatmapMeta",
+      "toMatchEvent",
+      "toOsuMatch",
       "toOsuUser",
       "userUrl",
       "writeCollectionDb",
@@ -71,12 +93,21 @@ it("keeps the client out of /shapes", () => {
   expect(Object.keys(shapes)).not.toContain("createOsuClient");
   expect(
     Object.keys(api)
-      .filter((name) => !(name in shapes) && !(name in collections) && !(name in format))
+      .filter(
+        (name) =>
+          !(name in shapes) &&
+          !(name in collections) &&
+          !(name in format) &&
+          !(name in match) &&
+          !(name in tournament),
+      )
       .sort(),
   ).toEqual([
     "BEATMAPSET_FALLBACK_LIMIT",
     "OSU_BEATMAPSET_FALLBACK_LIMIT",
     "OSU_BEATMAPS_BATCH_LIMIT",
+    "OSU_MATCH_EVENTS_LIMIT",
+    "OSU_MATCH_PAGE_LIMIT",
     "OSU_TIMEOUT_MS",
     "OsuApiError",
     "createOsuClient",
@@ -170,4 +201,29 @@ it("keeps /format to formatters that import nothing", () => {
   ]);
   expect(Object.keys(format).filter((name) => name in shapes || name in collections)).toEqual([]);
   expect(scanBrowserFolder("../src/format/")).toEqual(new Map([["index.ts", []]]));
+});
+
+it("keeps /match to pure helpers that import nothing at runtime", () => {
+  expect(Object.keys(match).sort()).toEqual([
+    "gameStatus",
+    "gameWinner",
+    "isTeamGame",
+    "listGames",
+    "mapWins",
+    "matchGames",
+  ]);
+  expect(Object.keys(match).filter((name) => name in shapes || name in tournament)).toEqual([]);
+  expect(scanBrowserFolder("../src/match/")).toEqual(new Map([["index.ts", []]]));
+});
+
+it("keeps /tournament to the bracket writer, importing nothing at runtime", () => {
+  expect(Object.keys(tournament).sort()).toEqual(["LAZER_BRACKET_FILENAME", "buildLazerBracket"]);
+  expect(Object.keys(tournament).filter((name) => name in shapes)).toEqual([]);
+  expect(scanBrowserFolder("../src/tournament/")).toEqual(new Map([["index.ts", []]]));
+});
+
+it("puts the match shapes in /shapes, without the client", () => {
+  for (const name of ["parseMatchId", "toOsuMatch", "osuMatchResponseSchema"]) {
+    expect(Object.keys(shapes)).toContain(name);
+  }
 });

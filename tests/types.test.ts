@@ -6,14 +6,16 @@
  *       dropping an `export` or changing a documented shape fails the check.
  * @author David @dvhsh (https://dvh.sh)
  * @created Mon Sep 28, 2026
- * @modified Mon Sep 28, 2026
+ * @modified Tue Oct 6, 2026
  */
 
 import { describe, expectTypeOf, it } from "vitest";
 import type * as Collections from "../src/collections/index.js";
 import type * as Format from "../src/format/index.js";
 import type * as Root from "../src/index.js";
+import type * as Match from "../src/match/index.js";
 import type * as Shapes from "../src/shapes/index.js";
+import type * as Tournament from "../src/tournament/index.js";
 
 describe("client types, from the root", () => {
   it("pins the options", () => {
@@ -244,5 +246,123 @@ describe("/format signatures", () => {
       (low: number, high: number, format: (n: number) => string) => string
     >();
     expectTypeOf<typeof Root.formatStars>().toEqualTypeOf<typeof Format.formatStars>();
+  });
+});
+
+describe("match types, from /shapes, /match, /tournament and the root", () => {
+  it("pins the client's match options and result", () => {
+    expectTypeOf<Root.MatchOptions>().toEqualTypeOf<
+      Root.BeatmapOptions & { maxPages?: number | undefined }
+    >();
+    expectTypeOf<Root.MatchLookup>().toEqualTypeOf<{ match: Root.OsuMatch; complete: boolean }>();
+    expectTypeOf<Root.OsuClient["getMatch"]>().toEqualTypeOf<
+      (match: number | string, options?: Root.MatchOptions) => Promise<Root.MatchLookup | null>
+    >();
+  });
+
+  it("pins the match shapes", () => {
+    expectTypeOf<Shapes.MatchTeam>().toEqualTypeOf<"red" | "blue" | "none">();
+    expectTypeOf<Shapes.MatchScore>().toEqualTypeOf<{
+      userId: number;
+      slot: number;
+      team: Shapes.MatchTeam;
+      score: number;
+      accuracy: number;
+      maxCombo: number;
+      misses: number;
+      mods: string[];
+      passed: boolean;
+    }>();
+    expectTypeOf<Shapes.MatchGame>().toEqualTypeOf<{
+      id: number;
+      beatmapId: number;
+      startTime: string;
+      endTime: string | null;
+      ruleset: Shapes.Ruleset;
+      scoringType: string;
+      teamType: string;
+      mods: string[];
+      scores: Shapes.MatchScore[];
+      beatmap: { id: number; beatmapsetId: number; version: string } | null;
+    }>();
+    expectTypeOf<Shapes.MatchEvent>().toEqualTypeOf<{
+      id: number;
+      type: string;
+      text: string | null;
+      timestamp: string;
+      userId: number | null;
+      game: Shapes.MatchGame | null;
+    }>();
+    expectTypeOf<Shapes.OsuMatch>().toEqualTypeOf<{
+      id: number;
+      name: string;
+      startTime: string;
+      endTime: string | null;
+      events: Shapes.MatchEvent[];
+      users: Shapes.OsuUser[];
+      firstEventId: number;
+      latestEventId: number;
+    }>();
+    expectTypeOf<Shapes.OsuMatchResponse>().toEqualTypeOf<
+      ReturnType<typeof Shapes.osuMatchResponseSchema.parse>
+    >();
+    expectTypeOf<typeof Shapes.parseMatchId>().toEqualTypeOf<
+      (input: number | string) => number | null
+    >();
+  });
+
+  it("pins the /match helper types", () => {
+    expectTypeOf<Match.MatchSide>().toEqualTypeOf<"red" | "blue" | number>();
+    expectTypeOf<Match.GameStatus>().toEqualTypeOf<"in_progress" | "aborted" | "completed">();
+    expectTypeOf<Match.WinCondition>().toEqualTypeOf<"score" | "accuracy" | "combo">();
+    expectTypeOf<Match.GameWinnerOptions>().toEqualTypeOf<{
+      by?: Match.WinCondition | undefined;
+      passedOnly?: boolean | undefined;
+    }>();
+    expectTypeOf<Match.ListGamesOptions>().toEqualTypeOf<{ warmups?: number | undefined }>();
+    expectTypeOf<Match.MapWinsOptions>().toEqualTypeOf<
+      Match.ListGamesOptions & Match.GameWinnerOptions
+    >();
+    expectTypeOf<Match.GameResult>().toEqualTypeOf<{
+      winner: Match.MatchSide | null;
+      totals: Map<Match.MatchSide, number>;
+    }>();
+    expectTypeOf<Root.GameResult>().toEqualTypeOf<Match.GameResult>();
+  });
+
+  it("pins the /tournament types", () => {
+    expectTypeOf<Tournament.BracketPlayer>().toEqualTypeOf<{
+      id: number;
+      username?: string | undefined;
+      country?: string | undefined;
+      rank?: number | undefined;
+    }>();
+    expectTypeOf<Tournament.BracketInput>().toEqualTypeOf<{
+      ruleset: Shapes.Ruleset;
+      teams: readonly Tournament.BracketTeam[];
+      rounds: readonly Tournament.BracketRound[];
+      matches: readonly Tournament.BracketMatch[];
+      settings?: Tournament.BracketSettings | undefined;
+    }>();
+    expectTypeOf<Tournament.BracketBeatmap>().toEqualTypeOf<{ id: number; mods: string }>();
+    expectTypeOf<Tournament.LazerBracket["Progressions"]>().toEqualTypeOf<
+      { SourceID: number; TargetID: number; Losers?: true }[]
+    >();
+    expectTypeOf<Tournament.LazerBracketMatch["Position"]>().toEqualTypeOf<{
+      X: number;
+      Y: number;
+    }>();
+    expectTypeOf<Tournament.LazerBracketTeam["Players"]>().toEqualTypeOf<
+      Tournament.LazerBracketPlayer[]
+    >();
+    expectTypeOf<Tournament.LazerBracketRound["Matches"]>().toEqualTypeOf<number[]>();
+    expectTypeOf<typeof Tournament.buildLazerBracket>().toEqualTypeOf<
+      (input: Tournament.BracketInput) => { bracket: Tournament.LazerBracket; json: string }
+    >();
+    expectTypeOf<Root.LazerBracket>().toEqualTypeOf<Tournament.LazerBracket>();
+    expectTypeOf<Root.BracketTeam>().toEqualTypeOf<Tournament.BracketTeam>();
+    expectTypeOf<Root.BracketRound>().toEqualTypeOf<Tournament.BracketRound>();
+    expectTypeOf<Root.BracketMatch>().toEqualTypeOf<Tournament.BracketMatch>();
+    expectTypeOf<Root.BracketSettings>().toEqualTypeOf<Tournament.BracketSettings>();
   });
 });
