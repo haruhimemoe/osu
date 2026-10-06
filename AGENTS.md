@@ -23,7 +23,7 @@
 - `src/collections/edit.ts`: `createCollectionDb`, `normalizeHash`, `collectionHashesFor`, `addToCollection`, `mergeCollections`, `lazerImportFiles`, and their result types.
 - `src/collections/errors.ts`: `CollectionDbError` and its codes.
 - `src/format/index.ts`: the `/format` entry: `formatDuration`, `formatLongDuration`, `formatStars`, `formatBpm`, `formatStat`, `formatBytes`, `formatRange`. packs and pools had identical copies; the output must stay exactly theirs.
-- `src/match/index.ts`: the `/match` entry: `matchGames`, `gameStatus`, `listGames`, `isTeamGame`, `gameWinner`, `mapWins`.
+- `src/match/index.ts`: the `/match` entry: `matchGames`, `gameStatus`, `listGames`, `isTeamGame`, `gameWinner`, `mapWins`; it re-exports `src/match/cost.ts`: `matchCosts` and `MATCH_COST_FORMULAS` (Bathbot, osu!plus, Flashlight, Elitebotix, each as its source code computes it; cite the source when changing one).
 - `src/tournament/index.ts`: the `/tournament` entry: `buildLazerBracket`, its input and output types, `LAZER_BRACKET_FILENAME`.
 - `tests/`: Vitest. `tests/exports.test.ts` pins the runtime exports and `tests/types.test.ts` the type exports; `tests/fixtures/beatmaps.json` and `tests/fixtures/match-pages.json` (two pages of one match) are hand-written in osu!'s shape. `tests/fixtures/bracket.json` is hand-written from lazer's `osu.Game.Tournament` models. `tests/collection-vectors.ts` holds the hand-built `collection.db` byte vectors, as hex, and the `thrown` helper the collections tests share.
 - `scripts/smoke.mjs`: imports the built `dist/` the way apps will (`bun run test:dist`). It runs `/collections` with Node's `Buffer` removed, and `/format`.

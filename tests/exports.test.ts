@@ -28,6 +28,7 @@ it("exports the documented runtime API", () => {
       "CollectionDbError",
       "DEFAULT_COLLECTION_DB_VERSION",
       "LAZER_BRACKET_FILENAME",
+      "MATCH_COST_FORMULAS",
       "MATCH_SCORING_TYPES",
       "MATCH_TEAM_TYPES",
       "MAX_COLLECTION_DB_BYTES",
@@ -65,6 +66,7 @@ it("exports the documented runtime API", () => {
       "lazerImportFiles",
       "listGames",
       "mapWins",
+      "matchCosts",
       "matchGames",
       "mergeCollections",
       "normalizeHash",
@@ -205,15 +207,22 @@ it("keeps /format to formatters that import nothing", () => {
 
 it("keeps /match to pure helpers that import nothing at runtime", () => {
   expect(Object.keys(match).sort()).toEqual([
+    "MATCH_COST_FORMULAS",
     "gameStatus",
     "gameWinner",
     "isTeamGame",
     "listGames",
     "mapWins",
+    "matchCosts",
     "matchGames",
   ]);
   expect(Object.keys(match).filter((name) => name in shapes || name in tournament)).toEqual([]);
-  expect(scanBrowserFolder("../src/match/")).toEqual(new Map([["index.ts", []]]));
+  expect(scanBrowserFolder("../src/match/")).toEqual(
+    new Map([
+      ["cost.ts", ["./index.js"]],
+      ["index.ts", ["./cost.js"]],
+    ]),
+  );
 });
 
 it("keeps /tournament to the bracket writer, importing nothing at runtime", () => {

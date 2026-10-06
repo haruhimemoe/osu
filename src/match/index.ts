@@ -2,8 +2,8 @@
  * @file src/match/index.ts
  * @desc @haruhimemoe/osu/match: pure helpers over an OsuMatch from getMatch. Games in order, each
  *       game's status (in progress, aborted, completed), each game's winner (team vs or
- *       head-to-head, by score, accuracy or combo) and map wins per side, with warmups skipped.
- *       No tournament rules beyond that. Imports nothing at runtime, so it runs in browsers.
+ *       head-to-head, by score, accuracy or combo) and map wins per side, with warmups skipped,
+ *       and match cost formulas (cost.ts). No tournament rules beyond that. Imports nothing at runtime, so it runs in browsers.
  * @author David @dvhsh (https://dvh.sh)
  * @created Tue Oct 6, 2026
  * @modified Tue Oct 6, 2026
@@ -163,3 +163,5 @@ export const mapWins = (match: OsuMatch, options: MapWinsOptions = {}): Map<Matc
   }
   return wins;
 };
+
+export * from "./cost.js";

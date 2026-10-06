@@ -328,6 +328,15 @@ describe("match types, from /shapes, /match, /tournament and the root", () => {
       totals: Map<Match.MatchSide, number>;
     }>();
     expectTypeOf<Root.GameResult>().toEqualTypeOf<Match.GameResult>();
+    expectTypeOf<Match.MatchCostFormula>().toEqualTypeOf<
+      "bathbot" | "osuplus" | "flashlight" | "elitebotix"
+    >();
+    expectTypeOf<Match.MatchCostOptions>().toEqualTypeOf<
+      Match.ListGamesOptions & { formula?: Match.MatchCostFormula | undefined }
+    >();
+    expectTypeOf<typeof Match.matchCosts>().toEqualTypeOf<
+      (match: Shapes.OsuMatch, options?: Match.MatchCostOptions) => Map<number, number>
+    >();
   });
 
   it("pins the /tournament types", () => {

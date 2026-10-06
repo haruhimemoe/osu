@@ -7,7 +7,7 @@ osu! API v2 for the haruhime.moe tools: [packs](https://packs.haruhime.moe), [po
 - **`@haruhimemoe/osu/shapes`**: the data. Zod schemas and types for a difficulty (`BeatmapMeta` and osu!'s beatmap row), a beatmapset's content fields, and the signed-in user, plus osu! links and the sign-in endpoints. No client code, so it's safe in browsers and in other packages that read osu!-shaped data, like mirrors.
 - **`@haruhimemoe/osu/collections`**: reads and writes osu!stable's `collection.db`, so a web page can add maps to a player's collections: stable takes the edited file back, and lazer imports it through its setup wizard. Safe in browsers, and it doesn't load zod.
 - **`@haruhimemoe/osu/format`**: display text for beatmap numbers: length as `m:ss`, star rating to two decimals, BPM, CS/AR/OD/HP, file sizes and ranges. Pure functions, safe in browsers, no zod.
-- **`@haruhimemoe/osu/match`**: game winners and map wins from a multiplayer match (an mp link): team vs or head-to-head, by score, accuracy or combo, with warmups skipped and aborted games left out. Pure functions, safe in browsers.
+- **`@haruhimemoe/osu/match`**: game winners and map wins from a multiplayer match (an mp link): team vs or head-to-head, by score, accuracy or combo, with warmups skipped and aborted games left out. Also match costs, by Bathbot's, osu!plus's, Flashlight's or Elitebotix's formula. Pure functions, safe in browsers.
 - **`@haruhimemoe/osu/tournament`**: writes the osu!lazer tournament client's `bracket.json` from plain data (teams, rounds and their maps, matches with scores and progressions), so streamers get a ready file. Pure, safe in browsers.
 - **`@haruhimemoe/osu`**: everything above, plus `createOsuClient` for servers. It caches the client-credentials token, sends your User-Agent, and has a hook for a shared rate budget. It fetches beatmaps, beatmapsets, star ratings with mods, users and multiplayer matches.
 
@@ -454,7 +454,26 @@ if (result) {
 | `gameWinner(game, { by, passedOnly })` | `{ winner, totals }`. In a team game the sides are `"red"` and `"blue"`, and scores on team `"none"` are left out; otherwise each side is a user id. `by` is `"score"` (summed per side), `"accuracy"` (averaged per side) or `"combo"` (max combos summed). By default it follows the room's win condition: `"accuracy"` or `"combo"` when the room's `scoringType` says so, else `"score"` (score v1 or v2, whichever the room used). `passedOnly` (default false) leaves out failed scores. `winner` is null on a tie or with no scores. |
 | `mapWins(match, options)` | Maps won per side over `listGames(match, options)`, judged by `gameWinner(game, options)`. Tied games count for nobody, and a side with no wins isn't in the map. |
 
-Types: `MatchSide` (`"red" | "blue" | number`), `GameStatus`, `WinCondition`, `GameWinnerOptions`, `ListGamesOptions`, `MapWinsOptions`, `GameResult`.
+### Match costs
+
+`matchCosts(match, { formula, warmups })` rates each player's performance across a match, as a `Map` from user id to match cost. It counts the same games as `listGames` (completed, warmups left out), then applies one of four published formulas, picked by name. A player with no counted score isn't in the map.
+
+```ts
+import { matchCosts } from "@haruhimemoe/osu/match";
+
+const costs = matchCosts(result.match, { formula: "flashlight", warmups: 2 }); // Map { 124493 => 1.18, ... }
+```
+
+| `formula` | Source | Formula |
+| --- | --- | --- |
+| `"bathbot"` (default) | [Bathbot](https://github.com/MaxOhn/Bathbot/blob/main/bathbot/src/commands/osu/match_costs.rs)'s `matchcost` | `(mean(score / game mean) + 0.5) × 1.5^(((p − 1) / (G − 1))^0.6) × mod bonus + tiebreaker bonus`. `p` is the games the player played and `G` the games counted. Zero scores are dropped first. The mod bonus is `1 + 0.02` for each mod combination past two (NF ignored). When the match has ended, ran past 4 games, is a team game, and was won by one map, everyone in the last game gets `min(0.5, 0.25 × their score / that game's mean)`. |
+| `"osuplus"` | [osu!plus](https://github.com/limjeck/osuplus)'s default | `2 × Σ(score / game mean) / (p + 2)`. |
+| `"flashlight"` | The Flashlight formula, as osu!plus ships it | `mean(score / game median) × ∛(p / median p)`, where `median p` is the median games played among everyone with a score. |
+| `"elitebotix"` | [Elitebotix](https://github.com/Eliteronix/Elitebotix/blob/main/commands/osu-matchscore.js)'s `/osu-matchscore`, mixed mode | `Σ(score / middle score) / p × (0.8 + 0.2p)`. Scores under 10,000 are dropped, and games left with one score skipped. In a lobby with an even number of scores, the middle score is taken without the player's own. Elitebotix assumes 2 warmups by default; here `warmups` defaults to 0 for every formula. |
+
+Scores are the room's own (score v2 when the room used it), failed ones included. It throws `RangeError` for an unknown formula or a bad `warmups`. `MATCH_COST_FORMULAS` lists the names.
+
+Types: `MatchSide` (`"red" | "blue" | number`), `GameStatus`, `WinCondition`, `GameWinnerOptions`, `ListGamesOptions`, `MapWinsOptions`, `GameResult`, `MatchCostFormula`, `MatchCostOptions`.
 
 ## Tournament
 
