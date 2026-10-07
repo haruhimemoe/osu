@@ -6,7 +6,7 @@
  *       statistics stay a name-to-count record, since each ruleset counts different judgements.
  * @author David @dvhsh (https://dvh.sh)
  * @created Tue Oct 6, 2026
- * @modified Tue Oct 6, 2026
+ * @modified Wed Oct 7, 2026
  */
 
 import { z } from "zod";
@@ -61,6 +61,8 @@ export const osuScoreSchema = z.object({
       id: z.number().int().positive(),
       title: z.string(),
       artist: z.string(),
+      title_unicode: z.string().nullish(),
+      artist_unicode: z.string().nullish(),
       creator: z.string(),
     })
     .nullish(),
@@ -93,6 +95,10 @@ export type OsuScoreBeatmapset = {
   beatmapsetId: number;
   title: string;
   artist: string;
+  /** The title in its own script (Japanese, say), or null when osu! sent none. */
+  titleUnicode: string | null;
+  /** The artist in their own script, or null when osu! sent none. */
+  artistUnicode: string | null;
   creator: string;
 };
 
@@ -171,6 +177,8 @@ export const toOsuScore = (row: OsuScoreRow): OsuScore => ({
         beatmapsetId: row.beatmapset.id,
         title: row.beatmapset.title,
         artist: row.beatmapset.artist,
+        titleUnicode: row.beatmapset.title_unicode ?? null,
+        artistUnicode: row.beatmapset.artist_unicode ?? null,
         creator: row.beatmapset.creator,
       }
     : null,

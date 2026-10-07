@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-07
+
+### Added
+
+- `OsuScoreBeatmapset` carries `titleUnicode` and `artistUnicode` (the set's names in their own script, or null), read from the score row's `title_unicode` and `artist_unicode`. For harumin's score cards.
+
 ## [0.6.0] - 2026-10-06
 
 ### Added
@@ -81,7 +87,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `createOsuClient` for servers, with `getBeatmaps`, `getBeatmapsets` and `getStarRating`: a cached client-credentials token, a required User-Agent, timeouts, and a `beforeCall` hook for a shared rate budget.
 - `OsuApiError` with a `code`, the HTTP `status` and `retryAfterMs`.
 
-[unreleased]: https://github.com/haruhimemoe/osu/compare/v0.6.0...HEAD
+[unreleased]: https://github.com/haruhimemoe/osu/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/haruhimemoe/osu/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/haruhimemoe/osu/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/haruhimemoe/osu/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/haruhimemoe/osu/compare/v0.3.0...v0.4.0

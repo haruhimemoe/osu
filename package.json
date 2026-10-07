@@ -1,6 +1,6 @@
 {
   "name": "@haruhimemoe/osu",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "osu! API v2 for the haruhime.moe tools: beatmap, beatmapset and user shapes with zod schemas (browser-safe at /shapes), a server client with token caching, a rate-budget hook, beatmaps, beatmapsets, star ratings with mods, users and matches, a browser-safe reader and writer for osu!stable's collection.db (at /collections), display formatting for beatmap stats (at /format), multiplayer matches from mp links with game winners and map wins (at /match), and the osu!lazer tournament client's bracket.json (at /tournament).",
   "keywords": [
     "osu",

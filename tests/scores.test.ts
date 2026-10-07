@@ -50,7 +50,13 @@ const SCORE = {
     checksum: "a5b99395a42bd55bc5eb1d2411cbdf8b",
     max_combo: 314,
   },
-  beatmapset: { id: 1, title: "DISCOPRINCE", artist: "Kenji Ninuma", creator: "peppy" },
+  beatmapset: {
+    id: 1,
+    title: "DISCOPRINCE",
+    artist: "Kenji Ninuma",
+    title_unicode: "ディスコプリンス",
+    creator: "peppy",
+  },
   user: { id: 2, username: "peppy", avatar_url: null, country_code: "AU" },
 };
 
@@ -225,7 +231,7 @@ describe("getUserScores", () => {
       weightedPp: 123.45,
       perfectCombo: false,
       beatmap: { beatmapId: 75, maxCombo: 314, starRating: 2.55 },
-      beatmapset: { title: "DISCOPRINCE" },
+      beatmapset: { title: "DISCOPRINCE", titleUnicode: "ディスコプリンス", artistUnicode: null },
       user: { osuId: 2, username: "peppy", avatarUrl: null },
     });
   });
