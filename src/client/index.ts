@@ -18,9 +18,12 @@ export {
   OSU_MATCH_PAGE_LIMIT,
   OSU_TIMEOUT_MS,
 } from "./options.js";
+export { OSU_SCORES_API_VERSION, OSU_SCORES_LIMIT } from "./scores.js";
 export type {
+  BeatmapDetail,
   BeatmapLookup,
   BeatmapOptions,
+  BeatmapScoresOptions,
   BeatmapsetLookup,
   BeatmapsetOptions,
   MatchLookup,
@@ -30,5 +33,7 @@ export type {
   StarRatingOptions,
   UserLookup,
   UserOptions,
+  UserScoresOptions,
+  UserScoreType,
   UsersOptions,
 } from "./types.js";

@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-06
+
+### Added
+
+- Profiles and scores on the client: `getUserProfile(user, { beforeCall, ruleset })` (an `OsuUserProfile` with one ruleset's statistics), `getUserScores(userId, "best" | "recent" | "firsts", { ruleset, limit, offset, includeFails })`, `getBeatmapUserScores(beatmapId, userId, { ruleset })`, `getBeatmapScores(beatmapId, { ruleset, limit })`, and `getBeatmap(beatmapId)` (metadata plus `maxCombo` and `status`). Score calls send `x-api-version: 20220705` for the lazer score format; a row that fails the schema is left out. For harumin.
+- Score shapes in `/shapes`: `osuScoreSchema`, `toOsuScore`, `osuModSchema`, `SCORE_RANKS`, and the types `OsuScore`, `OsuScoreRow`, `OsuScoreBeatmap`, `OsuScoreBeatmapset`, `OsuScoreUser`, `OsuMod`, `ScoreRank`. Profile shapes: `osuUserProfileSchema`, `toOsuUserProfile`, `OsuUserProfile`, `OsuUserStatistics`.
+- `formatMods` and `formatAccuracy` in `/format`.
+- `OSU_SCORES_API_VERSION`, `OSU_SCORES_LIMIT`, and the types `UserScoreType`, `UserScoresOptions`, `BeatmapScoresOptions`, `BeatmapDetail`. New public exports, so this release is a minor version.
+
 ## [0.5.0] - 2026-10-06
 
 ### Added

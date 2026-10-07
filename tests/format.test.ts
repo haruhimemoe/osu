@@ -10,10 +10,12 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  formatAccuracy,
   formatBpm,
   formatBytes,
   formatDuration,
   formatLongDuration,
+  formatMods,
   formatRange,
   formatStars,
   formatStat,
@@ -88,5 +90,20 @@ describe("formatRange", () => {
   it("shows one value when both ends look the same", () => {
     expect(formatRange(5.3, 5.3, formatStars)).toBe("5.30");
     expect(formatRange(5.301, 5.299, formatStars)).toBe("5.30");
+  });
+});
+
+describe("score formatters", () => {
+  it("formats mods, with a changed rate", () => {
+    expect(formatMods([])).toBe("NM");
+    expect(
+      formatMods([{ acronym: "HD" }, { acronym: "DT", settings: { speed_change: 1.3 } }]),
+    ).toBe("+HDDT(1.3x)");
+    expect(formatMods([{ acronym: "HR", settings: {} }])).toBe("+HR");
+  });
+
+  it("formats accuracy", () => {
+    expect(formatAccuracy(0.98765)).toBe("98.77%");
+    expect(formatAccuracy(1)).toBe("100.00%");
   });
 });

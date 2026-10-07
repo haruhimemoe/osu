@@ -1,12 +1,12 @@
 /**
  * @file src/format/index.ts
  * @desc @haruhimemoe/osu/format: display text for beatmap numbers (length, CS/AR/OD/HP, BPM,
- *       star rating), file sizes, long durations and ranges. Pure functions with no imports, so
+ *       star rating), file sizes, long durations and ranges, and (0.6) score mods and accuracy. Pure functions with no imports, so
  *       it's safe in browsers and loads no zod. Moved here from packs and pools, which had the
  *       same copy; the output is unchanged.
  * @author David @dvhsh (https://dvh.sh)
  * @created Mon Sep 28, 2026
- * @modified Mon Sep 28, 2026
+ * @modified Tue Oct 6, 2026
  */
 
 /**
@@ -82,3 +82,26 @@ export const formatRange = (low: number, high: number, format: (n: number) => st
   const [from, to] = [format(low), format(high)];
   return from === to ? from : `${from}–${to}`;
 };
+
+/**
+ * @function formatMods
+ * @param mods {readonly { acronym: string; settings?: Record<string, unknown> }[]} a score's mods
+ * @returns {string} "+HDDT", or "NM" with no mods. A changed rate shows after its mod: "+DT(1.3x)"
+ */
+export const formatMods = (
+  mods: readonly { acronym: string; settings?: Record<string, unknown> | undefined }[],
+): string => {
+  if (mods.length === 0) return "NM";
+  const parts = mods.map(({ acronym, settings }) => {
+    const rate = settings?.speed_change;
+    return typeof rate === "number" ? `${acronym}(${rate}x)` : acronym;
+  });
+  return `+${parts.join("")}`;
+};
+
+/**
+ * @function formatAccuracy
+ * @param accuracy {number} 0 to 1, as a score carries it
+ * @returns {string} two decimals and a percent sign ("98.76%")
+ */
+export const formatAccuracy = (accuracy: number): string => `${(accuracy * 100).toFixed(2)}%`;

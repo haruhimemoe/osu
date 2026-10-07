@@ -89,6 +89,16 @@ The client uses the client credentials grant with scope `public`. It asks for a 
 
 **`getUsers(ids, { beforeCall })`** asks `/api/v2/users?ids[]=` 50 ids at a time, after dropping duplicates, and returns `{ found, missing, unchecked }` like `getBeatmaps`: `found` holds `OsuUser` by id, `missing` the ids that aren't positive safe integers and the ids osu! sent no user for (deleted or restricted), and `unchecked` the ids in a batch `beforeCall` refused and the ids whose user fails our schema. It throws like `getBeatmaps`, for a body that isn't `{ users: [...] }`.
 
+**`getUserProfile(user, { beforeCall, ruleset })`** reads the same path as `getUser` and returns an `OsuUserProfile`: an `OsuUser` plus `playmode` (the user's main ruleset), `joinDate`, `supporter`, `coverUrl`, and `statistics` for `ruleset` (default: the user's main one). `statistics` holds `pp`, `globalRank` and `countryRank` (null when unranked), `accuracy` (percent, 0 to 100), `playCount`, `playTime` (seconds), `rankedScore`, `totalHits`, `maxCombo`, `level` (with progress, e.g. `100.42`) and `grades` (`ssh`, `ss`, `sh`, `s`, `a`). Missing numbers read as 0. It returns null on 404, and fails like `getUser`.
+
+**`getUserScores(userId, type, { beforeCall, ruleset, limit, offset, includeFails })`** lists a user's `"best"` (top plays), `"recent"` (the last 24 hours) or `"firsts"` (global #1s) from `/api/v2/users/{id}/scores/{type}`, as `OsuScore[]` in osu!'s order. `limit` is 1 to 100 (`OSU_SCORES_LIMIT`), `offset` pages, and `includeFails` adds failed plays to `"recent"` only. An unknown user is an empty list.
+
+**`getBeatmapUserScores(beatmapId, userId, { beforeCall, ruleset })`** lists every score a user has on one map (`/beatmaps/{id}/scores/users/{user}/all`). **`getBeatmapScores(beatmapId, { beforeCall, ruleset, limit })`** reads the map's global leaderboard (`/beatmaps/{id}/scores`, at most 100). Both answer an empty list for an unknown map. `ruleset` reads a convert.
+
+**`getBeatmap(beatmapId, { beforeCall })`** reads one difficulty from `/beatmaps/{id}` as a `BeatmapDetail`: its `BeatmapMeta` plus `maxCombo` and `status` (`"ranked"`, `"loved"`, `"graveyard"` and so on). Null on 404.
+
+The score methods send `x-api-version: 20220705` (`OSU_SCORES_API_VERSION`), so osu! answers in the lazer score format: mods as `{ acronym, settings }`, statistics by judgement name (`great`, `ok`, `meh`, `miss`, ...). A score row that fails our schema is left out of the list. Each makes one call, rejects with code `"budget"` when `beforeCall` refuses, and throws `RangeError` for a bad id, type, ruleset, `limit` or `offset` before anything is sent.
+
 **`getMatch(match, { beforeCall, maxPages })`** reads a multiplayer match from `/api/v2/matches/{id}`. `match` is an id or an mp link (`https://osu.ppy.sh/community/matches/{id}` or `https://osu.ppy.sh/mp/{id}`, the scheme optional). osu! sends a match's events 100 at a time, newest first, so `getMatch` asks again with `before` until it reaches the match's first event. It returns `{ match, complete }`, or null when osu! answers 404 for the first page.
 
 - `match` is an `OsuMatch` (see [Shapes](#shapes)): the match's name and times, every event oldest first (games included), and the users osu! sent with them.
@@ -162,6 +172,8 @@ await osu.getStarRating(129891, ["HD"], { beforeCall });
 | `BeatmapsetLookup`, `BeatmapsetOptions` | `getBeatmapsets`' result and options. |
 | `StarRatingOptions` | `getStarRating`'s options. |
 | `UserOptions`, `UserLookup`, `UsersOptions` | `getUser`'s options (`beforeCall`, `ruleset`); `getUsers`' result and options. |
+| `UserScoreType`, `UserScoresOptions`, `BeatmapScoresOptions`, `BeatmapDetail` | `getUserScores`' type and options, `getBeatmapScores`' and `getBeatmapUserScores`' options, and `getBeatmap`'s result. |
+| `OSU_SCORES_API_VERSION`, `OSU_SCORES_LIMIT` | The `x-api-version` the score methods send (`"20220705"`), and the most scores one call returns (100). |
 | `MatchOptions`, `MatchLookup` | `getMatch`'s options (`beforeCall`, `maxPages`) and result (`{ match, complete }`). |
 | `OsuApiError`, `OsuApiErrorCode` | The error, and its `code` values. `new OsuApiError(code, message, { status, retryAfterMs, cause })` builds one, for tests. |
 | `OSU_BEATMAPS_BATCH_LIMIT`, `OSU_BEATMAPSET_FALLBACK_LIMIT`, `OSU_TIMEOUT_MS` | 50 ids per `/beatmaps` call, the default `fallbackLimit` (10), the default `timeoutMs` (10,000). |
@@ -212,6 +224,9 @@ export const signedIn = async (accessToken: string) => {
 | `OsuBeatmapsetExtended`, `isExtendedBeatmapset` | A set with `availability`, `track_id` and `tags` all present (`track_id` and `tags` may be null), and the type guard that checks it. A compact set needs `/api/v2/beatmapsets/{id}`. Pass an extended set to [`@haruhimemoe/compliance`](https://github.com/haruhimemoe/compliance)'s `factsFromOsuBeatmapset`. |
 | `osuBeatmapsetRowSchema` | A `/api/v2/beatmaps` row reduced to `id`, `beatmapset_id` and its `beatmapset`. |
 | `osuUserSchema`, `toOsuUser`, `OsuUser` | The signed-in user from `/api/v2/me`. `osuUserSchema` keeps osu!'s names: `id`, `username`, and `avatar_url`, `country_code` and `country.code`, each optional or null. `toOsuUser` takes the raw profile and returns an `OsuUser`, `{ osuId, username, avatarUrl, countryCode }`, reading the country from `country.code`, else `country_code`. It throws a `ZodError` when there's no id or username. osu! never shares an email. |
+| `osuUserProfileSchema`, `toOsuUserProfile`, `OsuUserProfile`, `OsuUserStatistics` | A `/api/v2/users/{id}/{ruleset}` profile and its mapping (see `getUserProfile`). |
+| `osuScoreSchema`, `OsuScoreRow`, `toOsuScore`, `OsuScore` | A lazer-format score row and its mapping: `{ id, userId, beatmapId, ruleset, mods, accuracy, maxCombo, statistics, maximumStatistics, rank, pp, totalScore, legacyTotalScore, passed, perfectCombo, endedAt, weightedPp, beatmap, beatmapset, user }`. `accuracy` is 0 to 1; `pp` is null on unranked maps; `weightedPp` is set in a top-plays list. `beatmap`, `beatmapset` and `user` are summaries (`OsuScoreBeatmap`, `OsuScoreBeatmapset`, `OsuScoreUser`) or null when osu! didn't send them. |
+| `osuModSchema`, `OsuMod`, `SCORE_RANKS`, `ScoreRank` | A mod (`{ acronym, settings? }`), and the grades `XH`, `X`, `SH`, `S`, `A`, `B`, `C`, `D`, `F`. |
 | `OSU_BASE_URL`, `OSU_OAUTH`, `OSU_SIGN_IN_SCOPES` | `https://osu.ppy.sh`; the sign-in endpoints (`authorizationUrl`, `tokenUrl`, and `userInfoUrl` for `/api/v2/me`); and the scopes `["identify", "public"]`. |
 | `parseMatchId` | A match id from an id, a numeric string, or an mp link (`osu.ppy.sh/community/matches/{id}`, `osu.ppy.sh/mp/{id}`, with or without `https://` and `www.`). null for anything else, including other sites. |
 | `osuMatchResponseSchema`, `OsuMatchResponse`, `toOsuMatch`, `OsuMatch` | One `/api/v2/matches/{id}` page, and its mapping to `OsuMatch`: `{ id, name, startTime, endTime, events, users, firstEventId, latestEventId }`, events oldest first. `users` are `OsuUser`s; one without an id and username is left out. |
@@ -425,6 +440,8 @@ export const starSpan = (low: number, high: number) => formatRange(low, high, fo
 | `formatBpm(bpm)` | A whole number: `"222"`. |
 | `formatStat(value)` | CS, AR, OD or HP with at most one decimal and no float noise: `"3.8"`, `"9"`. |
 | `formatBytes(bytes)` | 1024-based `B`, `KB`, `MB` or `GB`, with one decimal under 10: `"512 B"`, `"6.6 MB"`, `"15 GB"`. |
+| `formatMods(mods)` | A score's mods as `"+HDDT"`, `"NM"` with none, and a changed rate after its mod: `"+DT(1.3x)"`. |
+| `formatAccuracy(accuracy)` | 0 to 1 as a percent with two decimals: `"98.77%"`. |
 | `formatRange(low, high, format)` | Both ends through `format`, joined by an en dash (`"4.50–6.20"`), or one value when both ends read the same. |
 
 They don't check their input. Pass finite numbers of zero or more: a `NaN` shows up as `NaN` in the text.

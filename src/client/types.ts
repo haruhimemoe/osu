@@ -113,3 +113,29 @@ export type MatchOptions = BeatmapOptions & {
  * a page, and `match.events` then holds only the newest events.
  */
 export type MatchLookup = { match: OsuMatch; complete: boolean };
+
+/** getUserScores' list: top plays, the last 24 hours, or global #1s. */
+export type UserScoreType = "best" | "recent" | "firsts";
+
+/** Options for getUserScores. */
+export type UserScoresOptions = BeatmapOptions & {
+  /** The ruleset whose scores to list (default: the user's main one). */
+  ruleset?: Ruleset | undefined;
+  /** 1 to OSU_SCORES_LIMIT (100). Default: osu!'s own. */
+  limit?: number | undefined;
+  /** Scores to skip, for paging. */
+  offset?: number | undefined;
+  /** "recent" only: include failed plays. Default false. */
+  includeFails?: boolean | undefined;
+};
+
+/** Options for getBeatmapScores and getBeatmapUserScores. */
+export type BeatmapScoresOptions = BeatmapOptions & {
+  /** The ruleset to read (a convert's), default the map's own. */
+  ruleset?: Ruleset | undefined;
+  /** getBeatmapScores only: 1 to OSU_SCORES_LIMIT (100). */
+  limit?: number | undefined;
+};
+
+/** One difficulty from getBeatmap: its metadata, max combo, and ranked status ("ranked", "loved", ...). */
+export type BeatmapDetail = BeatmapMeta & { maxCombo: number | null; status: string | null };

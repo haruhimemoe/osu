@@ -9,7 +9,7 @@ Keep `createOsuClient` on a server: it holds the OAuth client secret. Browser co
 - [Install](https://github.com/haruhimemoe/osu#install): npm or bun, with zod as a peer dependency.
 - [The client](https://github.com/haruhimemoe/osu#the-client): one client per process, and how the token is cached and refreshed.
 - [Options](https://github.com/haruhimemoe/osu#options): `userAgent`, `credentials`, `baseUrl`, `timeoutMs`, `fetch` and `now`, with defaults and the errors bad values throw.
-- [Methods](https://github.com/haruhimemoe/osu#methods): `getBeatmaps`, `getBeatmapsets`, `getStarRating`, `getUser`, `getUsers` and `getMatch`, and exactly which ids land in each result list.
+- [Methods](https://github.com/haruhimemoe/osu#methods): `getBeatmaps`, `getBeatmapsets`, `getStarRating`, `getBeatmap`, `getUser`, `getUsers`, `getUserProfile`, `getUserScores`, `getBeatmapUserScores`, `getBeatmapScores` and `getMatch`, and exactly which ids land in each result list.
 - [Errors](https://github.com/haruhimemoe/osu#errors): `OsuApiError`'s `code`, `status`, `retryAfterMs` and `cause`.
 - [Staying under osu!'s rate limit](https://github.com/haruhimemoe/osu#staying-under-osus-rate-limit): a `beforeCall` budget shared by every instance.
 - [Client exports](https://github.com/haruhimemoe/osu#client-exports): the root entry point's exports.
@@ -24,10 +24,10 @@ Keep `createOsuClient` on a server: it holds the OAuth client secret. Browser co
 
 ## Source
 
-- [src/client/client.ts](https://github.com/haruhimemoe/osu/blob/main/src/client/client.ts): `createOsuClient`, with JSDoc on each method. [users.ts](https://github.com/haruhimemoe/osu/blob/main/src/client/users.ts) has `getUser` and `getUsers`, [matches.ts](https://github.com/haruhimemoe/osu/blob/main/src/client/matches.ts) has `getMatch`, [errors.ts](https://github.com/haruhimemoe/osu/blob/main/src/client/errors.ts) has `OsuApiError`, and [types.ts](https://github.com/haruhimemoe/osu/blob/main/src/client/types.ts) the option and result types.
+- [src/client/client.ts](https://github.com/haruhimemoe/osu/blob/main/src/client/client.ts): `createOsuClient`, with JSDoc on each method. [users.ts](https://github.com/haruhimemoe/osu/blob/main/src/client/users.ts) has `getUser` and `getUsers`, [matches.ts](https://github.com/haruhimemoe/osu/blob/main/src/client/matches.ts) has `getMatch`, [scores.ts](https://github.com/haruhimemoe/osu/blob/main/src/client/scores.ts) has the profile and score lookups and `getBeatmap`, [errors.ts](https://github.com/haruhimemoe/osu/blob/main/src/client/errors.ts) has `OsuApiError`, and [types.ts](https://github.com/haruhimemoe/osu/blob/main/src/client/types.ts) the option and result types.
 - [src/shapes/beatmap.ts](https://github.com/haruhimemoe/osu/blob/main/src/shapes/beatmap.ts): rulesets, `BeatmapMeta`, osu!'s beatmap row and `toBeatmapMeta`.
 - [src/shapes/beatmapset.ts](https://github.com/haruhimemoe/osu/blob/main/src/shapes/beatmapset.ts): beatmapset content fields and `isExtendedBeatmapset`.
-- [src/shapes/user.ts](https://github.com/haruhimemoe/osu/blob/main/src/shapes/user.ts): the `/api/v2/me` schema and `toOsuUser`.
+- [src/shapes/user.ts](https://github.com/haruhimemoe/osu/blob/main/src/shapes/user.ts): the `/api/v2/me` schema and `toOsuUser`, and the profile with statistics. [src/shapes/score.ts](https://github.com/haruhimemoe/osu/blob/main/src/shapes/score.ts): the lazer score row and `toOsuScore`.
 - [src/shapes/match.ts](https://github.com/haruhimemoe/osu/blob/main/src/shapes/match.ts): the `/api/v2/matches/{id}` schemas, `OsuMatch`, `toOsuMatch` and `parseMatchId`.
 - [src/match/index.ts](https://github.com/haruhimemoe/osu/blob/main/src/match/index.ts): the `/match` helpers.
 - [src/tournament/index.ts](https://github.com/haruhimemoe/osu/blob/main/src/tournament/index.ts): `buildLazerBracket`.

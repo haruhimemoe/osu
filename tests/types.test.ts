@@ -78,6 +78,47 @@ describe("client types, from the root", () => {
     >();
   });
 
+  it("pins the score and profile lookups (0.6)", () => {
+    expectTypeOf<Root.OsuClient["getUserProfile"]>().toEqualTypeOf<
+      (user: number | string, options?: Root.UserOptions) => Promise<Root.OsuUserProfile | null>
+    >();
+    expectTypeOf<Root.OsuClient["getUserScores"]>().toEqualTypeOf<
+      (
+        userId: number,
+        type: Root.UserScoreType,
+        options?: Root.UserScoresOptions,
+      ) => Promise<Root.OsuScore[]>
+    >();
+    expectTypeOf<Root.OsuClient["getBeatmapUserScores"]>().toEqualTypeOf<
+      (
+        beatmapId: number,
+        userId: number,
+        options?: Root.BeatmapScoresOptions,
+      ) => Promise<Root.OsuScore[]>
+    >();
+    expectTypeOf<Root.OsuClient["getBeatmapScores"]>().toEqualTypeOf<
+      (beatmapId: number, options?: Root.BeatmapScoresOptions) => Promise<Root.OsuScore[]>
+    >();
+    expectTypeOf<Root.OsuClient["getBeatmap"]>().toEqualTypeOf<
+      (beatmapId: number, options?: Root.BeatmapOptions) => Promise<Root.BeatmapDetail | null>
+    >();
+    expectTypeOf<Root.UserScoreType>().toEqualTypeOf<"best" | "recent" | "firsts">();
+    expectTypeOf<Root.BeatmapDetail>().toExtend<Root.BeatmapMeta>();
+    expectTypeOf<Root.OsuScore>().toEqualTypeOf<Shapes.OsuScore>();
+    expectTypeOf<Root.OsuMod>().toEqualTypeOf<Shapes.OsuMod>();
+    expectTypeOf<Root.ScoreRank>().toEqualTypeOf<Shapes.ScoreRank>();
+    expectTypeOf<Root.OsuScoreRow>().toEqualTypeOf<Shapes.OsuScoreRow>();
+    expectTypeOf<Root.OsuScoreBeatmap>().toEqualTypeOf<Shapes.OsuScoreBeatmap>();
+    expectTypeOf<Root.OsuScoreBeatmapset>().toEqualTypeOf<Shapes.OsuScoreBeatmapset>();
+    expectTypeOf<Root.OsuScoreUser>().toEqualTypeOf<Shapes.OsuScoreUser>();
+    expectTypeOf<Root.OsuUserProfile>().toEqualTypeOf<Shapes.OsuUserProfile>();
+    expectTypeOf<Root.OsuUserStatistics>().toEqualTypeOf<Shapes.OsuUserStatistics>();
+    expectTypeOf<Shapes.OsuUserProfile>().toExtend<Shapes.OsuUser>();
+    expectTypeOf<Shapes.OsuScore["rank"]>().toEqualTypeOf<
+      "XH" | "X" | "SH" | "S" | "A" | "B" | "C" | "D" | "F"
+    >();
+  });
+
   it("pins the error", () => {
     expectTypeOf<
       "timeout" | "network" | "bad_response" | "http_error" | "budget"
