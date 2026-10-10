@@ -1,0 +1,8 @@
+# gitleaks: the default rules, minus test fixtures and documented placeholders.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Test fixtures, test env values and doc placeholders"
+paths = ['''(^|/)tests/''', '''(^|/)src/testing/''']
+regexes = ['''skip-env-validation''', '''hpk_your''', '''pk[12]\.[A-Za-z0-9_-]+''', '''t8Vq2Lm5Xr9Kc1Wz4Hn7Pb''']
