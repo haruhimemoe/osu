@@ -31,6 +31,24 @@ const isTimeout = (cause: unknown): boolean =>
  * @param response {Response} an answer whose body we won't read
  * @returns {void} frees the connection behind it. Not awaited: a cancel can hang on some stubs
  */
+const tries = new WeakMap<Response, number>();
+
+/**
+ * @function markAttempts
+ * @param response {Response} the answer the authorizer settled on
+ * @param attempts {number} calls it took
+ */
+export const markAttempts = (response: Response, attempts: number): void => {
+  tries.set(response, attempts);
+};
+
+/**
+ * @function attemptsOf
+ * @param response {Response} an answer from the authorizer
+ * @returns {number} calls it took (1 when nothing was retried)
+ */
+export const attemptsOf = (response: Response): number => tries.get(response) ?? 1;
+
 export const release = (response: Response): void => {
   response.body?.cancel().catch(() => undefined);
 };
@@ -96,6 +114,10 @@ export const createTransport = ({
       status === 429 || status === 503
         ? parseRetryAfter(response.headers.get("retry-after"), now())
         : null;
-    throw new OsuApiError("http_error", message, { status, retryAfterMs });
+    throw new OsuApiError("http_error", message, {
+      status,
+      retryAfterMs,
+      attempts: attemptsOf(response),
+    });
   },
 });

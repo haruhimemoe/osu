@@ -20,6 +20,10 @@ export const BEATMAPSET_FALLBACK_LIMIT = OSU_BEATMAPSET_FALLBACK_LIMIT;
 export const OSU_MATCH_EVENTS_LIMIT = 100;
 /** Default cap on pages per getMatch call: 50 pages, 5,000 events. */
 export const OSU_MATCH_PAGE_LIMIT = 50;
+/** Default retries after a 429, 503 or (GET) 5xx. */
+export const OSU_RETRY_ATTEMPTS = 2;
+/** Default longest single wait before a retry. */
+export const OSU_RETRY_MAX_WAIT_MS = 10_000;
 /** Default time a single request may take. */
 export const OSU_TIMEOUT_MS = 10_000;
 /** The longest delay setTimeout (and so AbortSignal.timeout) takes. */
@@ -37,6 +41,9 @@ export type ClientSettings = {
   timeoutMs: number;
   fetch: (input: string | URL, init?: RequestInit) => Promise<Response>;
   now: () => number;
+  /** Retries after the first call, and the longest single wait. */
+  retry: { attempts: number; maxWaitMs: number };
+  sleep: (ms: number) => Promise<void>;
   /** Reads (or calls for) the credentials and checks them; called once per token request. */
   readCredentials: () => OsuCredentials;
 };
@@ -101,12 +108,27 @@ export const resolveOptions = (options: OsuClientOptions): ClientSettings => {
   }
   const baseUrl = checkBaseUrl(options.baseUrl ?? OSU_BASE_URL);
   if (typeof credentials !== "function") checkCredentials(credentials);
+  const retry =
+    options.retry === false
+      ? { attempts: 0, maxWaitMs: 0 }
+      : {
+          attempts: options.retry?.attempts ?? OSU_RETRY_ATTEMPTS,
+          maxWaitMs: options.retry?.maxWaitMs ?? OSU_RETRY_MAX_WAIT_MS,
+        };
+  if (!Number.isInteger(retry.attempts) || retry.attempts < 0 || retry.attempts > 5) {
+    throw new RangeError("retry.attempts must be an integer from 0 to 5.");
+  }
+  if (!Number.isInteger(retry.maxWaitMs) || retry.maxWaitMs < 0 || retry.maxWaitMs > 60_000) {
+    throw new RangeError("retry.maxWaitMs must be an integer from 0 to 60000.");
+  }
   return {
     userAgent,
     baseUrl,
     timeoutMs,
     fetch: options.fetch ?? ((input, init) => globalThis.fetch(input, init)),
     now: options.now ?? Date.now,
+    retry,
+    sleep: options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms))),
     readCredentials: () =>
       checkCredentials(typeof credentials === "function" ? credentials() : credentials),
   };

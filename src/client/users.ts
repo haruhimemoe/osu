@@ -75,7 +75,7 @@ export const createUserLookups = ({ baseUrl, authorized, transport }: UserDeps) 
     if (!(await beforeCall())) {
       throw new OsuApiError("budget", "beforeCall refused the osu! call.");
     }
-    const response = await authorized(`${baseUrl}/api/v2${path}`);
+    const response = await authorized(`${baseUrl}/api/v2${path}`, { beforeRetry: beforeCall });
     if (response.status === 404) {
       release(response);
       return null;
@@ -105,10 +105,10 @@ export const createUserLookups = ({ baseUrl, authorized, transport }: UserDeps) 
     const found = new Map<number, OsuUser>();
     const unchecked = await fetchRows(unique.filter(isId), {
       beforeCall,
-      fetchBatch: async (batch) => {
+      fetchBatch: async (batch, beforeBatch) => {
         const url = new URL(`${baseUrl}/api/v2/users`);
         for (const id of batch) url.searchParams.append("ids[]", String(id));
-        const response = await authorized(url);
+        const response = await authorized(url, { beforeRetry: beforeBatch });
         if (!response.ok) return transport.failFor(response, `osu! answered ${response.status}.`);
         const body = await transport.readJson(response);
         return transport.readAs(usersResponseSchema, body, response.status).users;

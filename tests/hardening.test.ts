@@ -32,6 +32,8 @@ const stub = (
   const client = createOsuClient({
     userAgent: "tests",
     credentials: { clientId: "1", clientSecret: "s" },
+    // One call per answer, so each test sees exactly the status it stubbed (retries: retry.test.ts).
+    retry: false,
     ...rest,
     fetch: async (input, init) => {
       calls.push({ url: String(input), init });

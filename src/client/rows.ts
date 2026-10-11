@@ -19,7 +19,8 @@ export type RowFetch<T extends { id: number }> = {
   /** The caller's budget, asked before each batch; false skips it. */
   beforeCall: () => Promise<boolean>;
   /** One /beatmaps (or /users) call for up to OSU_BEATMAPS_BATCH_LIMIT ids, returning its raw rows. */
-  fetchBatch: (ids: readonly number[]) => Promise<unknown[]>;
+  /** Fetches one batch; pass beforeCall on as the authorizer's beforeRetry. */
+  fetchBatch: (ids: readonly number[], beforeCall: () => Promise<boolean>) => Promise<unknown[]>;
   /** The schema a row must pass. */
   schema: z.ZodType<T>;
   /** Gets each row that parses and was asked for. */
@@ -74,7 +75,7 @@ export const fetchRows = async <T extends { id: number }>(
       unchecked.push(...batch);
       continue;
     }
-    unchecked.push(...fileRows(await how.fetchBatch(batch), batch, how));
+    unchecked.push(...fileRows(await how.fetchBatch(batch, how.beforeCall), batch, how));
   }
   return unchecked;
 };

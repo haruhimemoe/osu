@@ -9,7 +9,8 @@
  */
 
 import { z } from "zod";
-import { release, type Transport } from "./http.js";
+import { OsuApiError, parseRetryAfter } from "./errors.js";
+import { markAttempts, release, type Transport } from "./http.js";
 import type { ClientSettings } from "./options.js";
 
 /** Refresh this long before expiry so a token never dies mid-request. */
@@ -24,7 +25,18 @@ const tokenResponseSchema = z.object({
 });
 
 /** An app-authorized request's method (GET by default), JSON body and extra headers. */
-export type AuthorizedInit = { method?: string; body?: string; headers?: Record<string, string> };
+export type AuthorizedInit = {
+  method?: string;
+  body?: string;
+  headers?: Record<string, string>;
+  /** Asked before each retry (pass the call's beforeCall); false stops with a "budget" error. */
+  beforeRetry?: () => Promise<boolean>;
+};
+
+/** Statuses retried on any method: osu! is rate limiting or briefly down. */
+const BUSY = new Set([429, 503]);
+/** Waits when osu! sends no Retry-After, by retry number, before jitter (up to +25%). */
+const BACKOFF_MS = [1000, 2000, 4000, 4000, 4000];
 
 /**
  * @function createAuthorizer
@@ -90,12 +102,39 @@ export const createAuthorizer = (settings: ClientSettings, transport: Transport)
       });
       return [response, used];
     };
-    const [response, used] = await send();
-    if (response.status !== 401) return response;
-    release(response);
-    // Drop only the token osu! refused: when another call's 401 already brought a fresh one (or is
-    // fetching it), this retry shares that instead of asking for yet another.
-    if (token === used) token = null;
-    return (await send())[0];
+    const once = async (): Promise<Response> => {
+      const [response, used] = await send();
+      if (response.status !== 401) return response;
+      release(response);
+      // Drop only the token osu! refused: when another call's 401 already brought a fresh one (or
+      // is fetching it), this retry shares that instead of asking for yet another.
+      if (token === used) token = null;
+      return (await send())[0];
+    };
+    const method = init.method ?? "GET";
+    let attempts = 1;
+    let serverRetried = false;
+    let response = await once();
+    while (attempts <= settings.retry.attempts) {
+      const { status } = response;
+      const busy = BUSY.has(status);
+      const flaky = !busy && status >= 500 && method === "GET" && !serverRetried;
+      if (!busy && !flaky) break;
+      const header = busy ? parseRetryAfter(response.headers.get("retry-after"), now()) : null;
+      const backoff = BACKOFF_MS[attempts - 1] ?? 4000;
+      const wait = header ?? Math.round(backoff * (1 + Math.random() * 0.25));
+      // Too long to wait here: hand the answer back so failFor reports its Retry-After.
+      if (wait > settings.retry.maxWaitMs) break;
+      release(response);
+      if (init.beforeRetry && !(await init.beforeRetry())) {
+        throw new OsuApiError("budget", "beforeCall refused the osu! call.", { attempts });
+      }
+      await settings.sleep(wait);
+      if (flaky) serverRetried = true;
+      response = await once();
+      attempts += 1;
+    }
+    markAttempts(response, attempts);
+    return response;
   };
 };

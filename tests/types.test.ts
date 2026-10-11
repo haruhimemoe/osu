@@ -27,6 +27,8 @@ describe("client types, from the root", () => {
       timeoutMs?: number | undefined;
       fetch?: ((input: string | URL, init?: RequestInit) => Promise<Response>) | undefined;
       now?: (() => number) | undefined;
+      retry?: { attempts?: number | undefined; maxWaitMs?: number | undefined } | false | undefined;
+      sleep?: ((ms: number) => Promise<void>) | undefined;
     }>();
     expectTypeOf<Root.BeatmapOptions>().toEqualTypeOf<{
       beforeCall?: (() => Promise<boolean>) | undefined;

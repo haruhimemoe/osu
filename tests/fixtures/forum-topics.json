@@ -1,0 +1,56 @@
+{
+  "topics": [
+    {
+      "created_at": "2026-10-05T13:52:58+00:00",
+      "deleted_at": null,
+      "first_post_id": 10333410,
+      "forum_id": 55,
+      "id": 2251619,
+      "is_locked": false,
+      "last_post_id": 10339126,
+      "post_count": 14,
+      "title": "[STD] Yimasu‘s Hidden Tournament 2 (20.000 - 99.999 rank) (2vs2 ts3)",
+      "type": "normal",
+      "updated_at": "2026-10-11T10:50:02+00:00",
+      "user_id": 19992356,
+      "views": 1398,
+      "poll": null
+    },
+    {
+      "created_at": "2026-10-08T02:43:20+00:00",
+      "deleted_at": null,
+      "first_post_id": 10335819,
+      "forum_id": 55,
+      "id": 2252361,
+      "is_locked": false,
+      "last_post_id": 10339045,
+      "post_count": 18,
+      "title": "[STD]SMST 84 50K-100K [Open]",
+      "type": "normal",
+      "updated_at": "2026-10-11T08:09:00+00:00",
+      "user_id": 1576095,
+      "views": 259,
+      "poll": null
+    },
+    {
+      "created_at": "2026-09-22T02:20:16+00:00",
+      "deleted_at": null,
+      "first_post_id": 10318749,
+      "forum_id": 55,
+      "id": 2247489,
+      "is_locked": false,
+      "last_post_id": 10338937,
+      "post_count": 21,
+      "title": "[STD] [1v1 | Open Rank] Colorado LAN Duels (COLD) [PLAYER AND STAFF REGS OPEN]",
+      "type": "normal",
+      "updated_at": "2026-10-11T05:17:14+00:00",
+      "user_id": 10909049,
+      "views": 647,
+      "poll": null
+    }
+  ],
+  "cursor": {
+    "topic_last_post_time": "2026-09-29T14:25:50.000000Z"
+  },
+  "cursor_string": "eyJ0b3BpY19sYXN0X3Bvc3RfdGltZSI6IjIwMjYtMDktMjlUMTQ6MjU6NTAuMDAwMDAwWiJ9"
+}

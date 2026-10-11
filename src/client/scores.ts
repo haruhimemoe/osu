@@ -92,7 +92,7 @@ export const createScoreLookups = ({ baseUrl, authorized, transport }: ScoreDeps
     if (!(await beforeCall())) {
       throw new OsuApiError("budget", "beforeCall refused the osu! call.");
     }
-    const response = await authorized(url, init);
+    const response = await authorized(url, { ...init, beforeRetry: beforeCall });
     if (response.status === 404) {
       release(response);
       return null;
@@ -311,7 +311,9 @@ export const createScoreLookups = ({ baseUrl, authorized, transport }: ScoreDeps
         throw new OsuApiError("budget", "beforeCall refused the osu! call.");
       }
       const path = mode ? `/scores/${mode}/${id}/download` : `/scores/${id}/download`;
-      const response = await authorized(new URL(`${baseUrl}/api/v2${path}`));
+      const response = await authorized(new URL(`${baseUrl}/api/v2${path}`), {
+        beforeRetry: beforeCall,
+      });
       if (response.status === 404) {
         release(response);
         return null;

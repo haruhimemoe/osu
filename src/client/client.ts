@@ -61,16 +61,22 @@ export const createOsuClient = (options: OsuClientOptions) => {
   const transport = createTransport(settings);
   const authorized = createAuthorizer(settings, transport);
 
-  const getJson = async (url: URL): Promise<{ body: unknown; status: number }> => {
-    const response = await authorized(url);
+  const getJson = async (
+    url: URL,
+    beforeCall: () => Promise<boolean>,
+  ): Promise<{ body: unknown; status: number }> => {
+    const response = await authorized(url, { beforeRetry: beforeCall });
     if (!response.ok) return transport.failFor(response, `osu! answered ${response.status}.`);
     return { body: await transport.readJson(response), status: response.status };
   };
 
-  const fetchBatch = async (ids: readonly number[]): Promise<unknown[]> => {
+  const fetchBatch = async (
+    ids: readonly number[],
+    beforeCall: () => Promise<boolean>,
+  ): Promise<unknown[]> => {
     const url = new URL(`${baseUrl}/api/v2/beatmaps`);
     for (const id of ids) url.searchParams.append("ids[]", String(id));
-    const { body, status } = await getJson(url);
+    const { body, status } = await getJson(url, beforeCall);
     return transport.readAs(beatmapsResponseSchema, body, status).beatmaps;
   };
 
@@ -81,9 +87,10 @@ export const createOsuClient = (options: OsuClientOptions) => {
    */
   const fetchBeatmapset = async (
     setId: number,
+    beforeCall: () => Promise<boolean>,
   ): Promise<OsuBeatmapsetExtended | "missing" | "unchecked"> => {
     try {
-      const { body } = await getJson(new URL(`${baseUrl}/api/v2/beatmapsets/${setId}`));
+      const { body } = await getJson(new URL(`${baseUrl}/api/v2/beatmapsets/${setId}`), beforeCall);
       const parsed = osuBeatmapsetSchema.safeParse(body);
       return parsed.success && isExtendedBeatmapset(parsed.data) ? parsed.data : "unchecked";
     } catch (error) {
@@ -114,7 +121,7 @@ export const createOsuClient = (options: OsuClientOptions) => {
         continue;
       }
       fallbacks += 1;
-      const full = await fetchBeatmapset(setId);
+      const full = await fetchBeatmapset(setId, beforeCall);
       if (full === "missing") sets.delete(setId);
       else if (full === "unchecked") skipped.add(setId);
       else sets.set(setId, full);
@@ -234,6 +241,7 @@ export const createOsuClient = (options: OsuClientOptions) => {
         method: "POST",
         body: JSON.stringify({ mods }),
         headers: { "Content-Type": "application/json" },
+        beforeRetry: beforeCall,
       });
       if (response.status === 404 || response.status === 422) {
         release(response);

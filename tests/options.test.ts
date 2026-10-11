@@ -191,3 +191,29 @@ describe("createOsuClient options", () => {
     expect(unchecked).toEqual([2, 3]);
   });
 });
+
+describe("retry option", () => {
+  it.each([
+    { attempts: -1 },
+    { attempts: 6 },
+    { attempts: 1.5 },
+    { maxWaitMs: -1 },
+    { maxWaitMs: 60_001 },
+  ])("rejects retry %o", (retry) => {
+    expect(() =>
+      createOsuClient({ credentials: { clientId: "1", clientSecret: "s" }, userAgent: "t", retry }),
+    ).toThrow(RangeError);
+  });
+
+  it("accepts false and the bounds", () => {
+    for (const retry of [false, { attempts: 0 }, { attempts: 5, maxWaitMs: 60_000 }] as const) {
+      expect(() =>
+        createOsuClient({
+          credentials: { clientId: "1", clientSecret: "s" },
+          userAgent: "t",
+          retry,
+        }),
+      ).not.toThrow();
+    }
+  });
+});

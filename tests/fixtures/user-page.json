@@ -1,0 +1,15 @@
+{
+  "id": 2,
+  "username": "peppy",
+  "avatar_url": "https://a.ppy.sh/2?1657169614.png",
+  "country_code": "AU",
+  "country": {
+    "code": "AU",
+    "name": "Australia"
+  },
+  "page": {
+    "html": "<div class='bbcode bbcode--profile-page'><div class=\"bbcode__align-centre\"><span style=\"font-size:85%;\">(<span style=\"color:#f462a3;\">๑</span>・ω・<span style=\"color:#f462a3;\">๑</span>)</span><br /><br />(<span style=\"color:#f462a3;\">๑</span>・ω・<span style=\"color:#f462a3;\">๑</span>)<br /><br /><span style=\"font-size:150%;\">(<span style=\"color:#f462a3;\">๑</span>・ω・<span style=\"color:#f462a3;\">๑</span>)</span><br /><br /></div><br /><div class=\"bbcode__align-centre\"><span style=\"font-size:85%;\"><a rel=\"nofollow\" href=\"http://blog.ppy.sh/\">dev blog</a> | <a rel=\"nofollow\" href=\"http://osu.ppy.sh/p/changelog\">changelog</a> | <a rel=\"nofollow\" href=\"http://osu.ppy.sh/community/forums/topics/83155\">make osu! more awesome!</a> | <a rel=\"nofollow\" href=\"http://osustream.com\">osu!stream (iOS)</a></span></div></div>",
+    "raw": "[centre]\n[size=85]([color=#f462a3]๑[/color]・ω・[color=#f462a3]๑[/color])[/size]\n\n([color=#f462a3]๑[/color]・ω・[color=#f462a3]๑[/color])\n\n[size=150]([color=#f462a3]๑[/color]・ω・[color=#f462a3]๑[/color])[/size]\n\n[/centre]\n\n[centre][size=85][url=http://blog.ppy.sh/]dev blog[/url] | [url=http://osu.ppy.sh/p/changelog]changelog[/url] | [url=http://osu.ppy.sh/community/forums/topics/83155]make osu! more awesome![/url] | [url=http://osustream.com]osu!stream (iOS)[/url][/size][/centre]"
+  },
+  "is_restricted": false
+}

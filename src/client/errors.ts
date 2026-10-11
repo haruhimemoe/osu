@@ -36,12 +36,15 @@ export class OsuApiError extends Error {
   readonly status: number | null;
   /** osu!'s Retry-After on a 429 or 503, in ms (capped at 60 s), when it sent a readable one. */
   readonly retryAfterMs: number | null;
+  /** Calls made before giving up: 1 when nothing was retried. */
+  readonly attempts: number;
 
   /**
    * @param code {OsuApiErrorCode} what went wrong
    * @param message {string} a sentence for logs; never holds a credential
-   * @param options {{ status?, retryAfterMs?, cause? }} the HTTP status and Retry-After in ms
-   *        (both null when not given), and the underlying error
+   * @param options {{ status?, retryAfterMs?, attempts?, cause? }} the HTTP status and Retry-After
+   *        in ms (both null when not given), the calls made (1 when not given), and the
+   *        underlying error
    */
   constructor(
     code: OsuApiErrorCode,
@@ -49,6 +52,7 @@ export class OsuApiError extends Error {
     options: {
       status?: number | null | undefined;
       retryAfterMs?: number | null | undefined;
+      attempts?: number | undefined;
       cause?: unknown;
     } = {},
   ) {
@@ -57,6 +61,7 @@ export class OsuApiError extends Error {
     this.code = code;
     this.status = options.status ?? null;
     this.retryAfterMs = options.retryAfterMs ?? null;
+    this.attempts = options.attempts ?? 1;
   }
 }
 

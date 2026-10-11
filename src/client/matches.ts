@@ -38,11 +38,15 @@ type MatchDeps = {
  */
 export const createMatchLookups = ({ baseUrl, authorized, transport }: MatchDeps) => {
   /** One page; null on a 404. */
-  const fetchPage = async (id: number, before: number | null): Promise<OsuMatch | null> => {
+  const fetchPage = async (
+    id: number,
+    before: number | null,
+    beforeCall: () => Promise<boolean>,
+  ): Promise<OsuMatch | null> => {
     const url = new URL(`${baseUrl}/api/v2/matches/${id}`);
     if (before !== null) url.searchParams.set("before", String(before));
     url.searchParams.set("limit", String(OSU_MATCH_EVENTS_LIMIT));
-    const response = await authorized(url);
+    const response = await authorized(url, { beforeRetry: beforeCall });
     if (response.status === 404) {
       release(response);
       return null;
@@ -80,7 +84,7 @@ export const createMatchLookups = ({ baseUrl, authorized, transport }: MatchDeps
       if (!(await beforeCall())) {
         throw new OsuApiError("budget", "beforeCall refused the osu! call.");
       }
-      const first = await fetchPage(id, null);
+      const first = await fetchPage(id, null, beforeCall);
       if (first === null) return null;
       const events = new Map<number, MatchEvent>();
       const users = new Map<number, OsuUser>();
@@ -99,7 +103,7 @@ export const createMatchLookups = ({ baseUrl, authorized, transport }: MatchDeps
           break;
         }
         pages += 1;
-        const page = await fetchPage(id, oldest);
+        const page = await fetchPage(id, oldest, beforeCall);
         if (page === null) {
           throw new OsuApiError("http_error", "osu! answered 404 partway through the match.", {
             status: 404,

@@ -301,6 +301,7 @@ describe("getBeatmapsets", () => {
     const { sets: facts, unchecked } = await createOsuClient({
       userAgent: SERVER_USER_AGENT,
       credentials,
+      retry: false,
     }).getBeatmapsets([75, 76, 999]);
     expect([...facts.keys()]).toEqual([75, 76]);
     expect(facts.get(75)).toMatchObject({ id: 1, status: "ranked", tags: "katamari" });
@@ -314,6 +315,7 @@ describe("getBeatmapsets", () => {
     const { sets: facts } = await createOsuClient({
       userAgent: SERVER_USER_AGENT,
       credentials,
+      retry: false,
     }).getBeatmapsets([80, 81]);
     expect(setRequests).toEqual(["5"]);
     expect(facts.get(80)).toMatchObject({
@@ -335,6 +337,7 @@ describe("getBeatmapsets", () => {
     const { sets: facts, unchecked } = await createOsuClient({
       userAgent: SERVER_USER_AGENT,
       credentials,
+      retry: false,
     }).getBeatmapsets(rows.map((row) => row.id));
     expect(setRequests).toEqual(Array.from({ length: 10 }, (_, i) => String(200 + i)));
     expect([...facts.keys()]).toEqual(Array.from({ length: 10 }, (_, i) => 100 + i));
@@ -346,6 +349,7 @@ describe("getBeatmapsets", () => {
     const { sets: facts, unchecked } = await createOsuClient({
       userAgent: SERVER_USER_AGENT,
       credentials,
+      retry: false,
     }).getBeatmapsets([80]);
     expect(facts.size).toBe(0);
     expect(unchecked).toEqual([]);
@@ -366,6 +370,7 @@ describe("getBeatmapsets", () => {
       const { sets: facts, unchecked } = await createOsuClient({
         userAgent: SERVER_USER_AGENT,
         credentials,
+        retry: false,
       }).getBeatmapsets([75, 80, 90]);
       expect(setRequests).toEqual(["5", "6"]);
       expect([...facts.keys()]).toEqual([75, 90]);
@@ -384,6 +389,7 @@ describe("getBeatmapsets", () => {
     const { sets: facts, unchecked } = await createOsuClient({
       userAgent: SERVER_USER_AGENT,
       credentials,
+      retry: false,
     }).getBeatmapsets(rows.map((row) => row.id));
     expect(setRequests).toHaveLength(10);
     expect(facts.size).toBe(0);
@@ -401,6 +407,7 @@ describe("getBeatmapsets", () => {
     const { sets: facts, unchecked } = await createOsuClient({
       userAgent: SERVER_USER_AGENT,
       credentials,
+      retry: false,
     }).getBeatmapsets([80]);
     expect(setRequests).toEqual(["5"]);
     expect(facts.size).toBe(0);
@@ -415,6 +422,7 @@ describe("getBeatmapsets", () => {
     const { unchecked } = await createOsuClient({
       userAgent: SERVER_USER_AGENT,
       credentials,
+      retry: false,
     }).getBeatmapsets([80]);
     expect(unchecked).toEqual([80]);
   });
@@ -423,6 +431,7 @@ describe("getBeatmapsets", () => {
     const { sets: facts } = await createOsuClient({
       userAgent: SERVER_USER_AGENT,
       credentials,
+      retry: false,
     }).getBeatmapsets(Array.from({ length: 64 }, (_, i) => i + 40));
     expect(beatmapRequests.map((u) => u.searchParams.getAll("ids[]").length)).toEqual([50, 14]);
     expect([...facts.keys()]).toEqual([75]);
@@ -449,6 +458,7 @@ describe("getBeatmapsets", () => {
     const { sets: facts, unchecked } = await createOsuClient({
       userAgent: SERVER_USER_AGENT,
       credentials,
+      retry: false,
     }).getBeatmapsets(
       Array.from({ length: 64 }, (_, i) => i + 40),
       gate(1),
@@ -464,6 +474,7 @@ describe("getBeatmapsets", () => {
     const { sets: facts, unchecked } = await createOsuClient({
       userAgent: SERVER_USER_AGENT,
       credentials,
+      retry: false,
     }).getBeatmapsets([80, 90], gate(2));
     expect(setRequests).toEqual(["5"]);
     expect([...facts.keys()]).toEqual([80]);
