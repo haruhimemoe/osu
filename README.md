@@ -99,6 +99,8 @@ The client uses the client credentials grant with scope `public`. It asks for a 
 
 **`getScoreReplay(scoreId, { beforeCall, ruleset })`** downloads a score's replay from `/scores/{id}/download` as `.osr` bytes (a `Uint8Array`). Pass `ruleset` with a stable score's legacy id (`osu.ppy.sh/scores/osu/<id>`). Null on 404, which is also what osu! sends for a score it keeps no replay of.
 
+**`getBeatmapByChecksum(md5, { beforeCall })`** finds a difficulty by its `.osu` MD5 (`/beatmaps/lookup`), for a replay's beatmap hash. Same `BeatmapDetail` as `getBeatmap`; null when osu! has no map with that hash.
+
 The score methods send `x-api-version: 20220705` (`OSU_SCORES_API_VERSION`), so osu! answers in the lazer score format: mods as `{ acronym, settings }`, statistics by judgement name (`great`, `ok`, `meh`, `miss`, ...). A score row that fails our schema is left out of the list. Each makes one call, rejects with code `"budget"` when `beforeCall` refuses, and throws `RangeError` for a bad id, type, ruleset, `limit` or `offset` before anything is sent.
 
 **`getMatch(match, { beforeCall, maxPages })`** reads a multiplayer match from `/api/v2/matches/{id}`. `match` is an id or an mp link (`https://osu.ppy.sh/community/matches/{id}` or `https://osu.ppy.sh/mp/{id}`, the scheme optional). osu! sends a match's events 100 at a time, newest first, so `getMatch` asks again with `before` until it reaches the match's first event. It returns `{ match, complete }`, or null when osu! answers 404 for the first page.
@@ -493,6 +495,22 @@ const costs = matchCosts(result.match, { formula: "flashlight", warmups: 2 }); /
 Scores are the room's own (score v2 when the room used it), failed ones included. It throws `RangeError` for an unknown formula or a bad `warmups`. `MATCH_COST_FORMULAS` lists the names.
 
 Types: `MatchSide` (`"red" | "blue" | number`), `GameStatus`, `WinCondition`, `GameWinnerOptions`, `ListGamesOptions`, `MapWinsOptions`, `GameResult`, `MatchCostFormula`, `MatchCostOptions`.
+
+## Replay
+
+`@haruhimemoe/osu/replay` reads the header of an `.osr` file, from stable or a lazer export. It imports nothing, so it runs in browsers too.
+
+```ts
+import { parseReplayHeader, replayScore } from "@haruhimemoe/osu/replay";
+
+const header = parseReplayHeader(osrBytes);
+// { ruleset: "osu", beatmapMd5: "a5b9...", username: "peppy", counts: { n300, n100, n50, geki, katu, miss },
+//   totalScore, maxCombo, perfect, modFlags, mods: ["HD", "NC"], playedAt: "2026-10-10T...", scoreId }
+const { statistics, accuracy, rank } = replayScore(header);
+// lazer's statistic names, stable's accuracy (0 to 1) and rank
+```
+
+Find the map with `getBeatmapByChecksum(header.beatmapMd5)`. The cursor data (LZMA) is skipped, not decoded. A file that ends early or isn't a replay throws `ReplayError`. `modsFromFlags(bits)` turns stable mod bits into acronyms, NC without its DT and PF without its SD.
 
 ## Tournament
 

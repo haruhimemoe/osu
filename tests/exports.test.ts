@@ -17,6 +17,7 @@ import * as collections from "../src/collections/index.js";
 import * as format from "../src/format/index.js";
 import * as api from "../src/index.js";
 import * as match from "../src/match/index.js";
+import * as replay from "../src/replay/index.js";
 import * as shapes from "../src/shapes/index.js";
 import * as tournament from "../src/tournament/index.js";
 
@@ -45,6 +46,7 @@ it("exports the documented runtime API", () => {
       "OSU_TIMEOUT_MS",
       "OsuApiError",
       "RULESETS",
+      "ReplayError",
       "SCORE_RANKS",
       "addToCollection",
       "beatmapMetaSchema",
@@ -74,6 +76,7 @@ it("exports the documented runtime API", () => {
       "matchCosts",
       "matchGames",
       "mergeCollections",
+      "modsFromFlags",
       "normalizeHash",
       "osuBeatmapRowSchema",
       "osuBeatmapsetRowSchema",
@@ -87,7 +90,9 @@ it("exports the documented runtime API", () => {
       "osuUserProfileSchema",
       "osuUserSchema",
       "parseMatchId",
+      "parseReplayHeader",
       "readCollectionDb",
+      "replayScore",
       "rulesetSchema",
       "toBeatmapMeta",
       "toMatchEvent",
@@ -111,6 +116,7 @@ it("keeps the client out of /shapes", () => {
           !(name in collections) &&
           !(name in format) &&
           !(name in match) &&
+          !(name in replay) &&
           !(name in tournament),
       )
       .sort(),

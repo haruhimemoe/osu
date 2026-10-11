@@ -3,7 +3,7 @@
  * @desc Score and profile lookups for createOsuClient (0.6): a user's profile with one ruleset's
  *       statistics, a user's best, recent or first-place scores, a user's scores on one map, a
  *       map's global leaderboard, one difficulty with its max combo and ranked status, and a
- *       score's replay (0.8). Score
+ *       score's replay (0.8), and a difficulty by its MD5 (0.9). Score
  *       calls send `x-api-version: 20220705`, so osu! answers in the lazer score format. A row
  *       that fails the schema is left out of a list, never guessed at.
  * @author David @dvhsh (https://dvh.sh)
@@ -251,6 +251,32 @@ export const createScoreLookups = ({ baseUrl, authorized, transport }: ScoreDeps
         new URL(`${baseUrl}/api/v2/beatmaps/${beatmapId}`),
         beforeCall,
       );
+      if (!answer) return null;
+      const row = transport.readAs(beatmapDetailSchema, answer.body, answer.status);
+      return {
+        ...toBeatmapMeta(row),
+        maxCombo: row.max_combo ?? null,
+        status: row.status ?? null,
+      };
+    },
+
+    /**
+     * @function getBeatmapByChecksum
+     * @param checksum {string} a difficulty's .osu MD5 (a replay's beatmap hash)
+     * @param options {BeatmapOptions} beforeCall, asked once
+     * @returns {Promise<BeatmapDetail | null>} the difficulty, or null when osu! has no map with
+     *          that hash (404: unsubmitted, or edited since)
+     * @throws {OsuApiError} code "budget" when beforeCall refuses; otherwise as getBeatmap
+     * @throws {RangeError} when the checksum isn't an MD5 (before any call)
+     */
+    async getBeatmapByChecksum(
+      checksum: string,
+      { beforeCall = alwaysCall }: BeatmapOptions = {},
+    ): Promise<BeatmapDetail | null> {
+      if (!/^[0-9a-f]{32}$/i.test(checksum)) throw new RangeError("checksum must be an MD5.");
+      const url = new URL(`${baseUrl}/api/v2/beatmaps/lookup`);
+      url.searchParams.set("checksum", checksum.toLowerCase());
+      const answer = await getOrNull(url, beforeCall);
       if (!answer) return null;
       const row = transport.readAs(beatmapDetailSchema, answer.body, answer.status);
       return {

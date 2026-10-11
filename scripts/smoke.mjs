@@ -16,6 +16,7 @@ import * as collections from "../dist/collections/index.js";
 import * as format from "../dist/format/index.js";
 import { createOsuClient, formatStars, readCollectionDb } from "../dist/index.js";
 import * as match from "../dist/match/index.js";
+import * as replay from "../dist/replay/index.js";
 import * as shapes from "../dist/shapes/index.js";
 import * as tournament from "../dist/tournament/index.js";
 
@@ -114,4 +115,7 @@ const { json } = tournament.buildLazerBracket({
 });
 assert.equal(JSON.parse(json).Ruleset.ShortName, "osu");
 assert.equal("createOsuClient" in tournament, false, "/tournament has no client");
+
+assert.deepEqual(replay.modsFromFlags(8 + 64 + 512), ["HD", "NC"]);
+assert.throws(() => replay.parseReplayHeader(new Uint8Array([9])), replay.ReplayError);
 console.log("smoke: ok");

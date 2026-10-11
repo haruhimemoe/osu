@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-10
+
+### Added
+
+- `@haruhimemoe/osu/replay`: `parseReplayHeader(bytes)` reads an `.osr` header (ruleset, beatmap MD5, player, hit counts, score, combo, mods, date, score id), `replayScore(header)` gives lazer statistics with stable's accuracy and rank, and `modsFromFlags(flags)` turns stable mod bits into acronyms. Throws `ReplayError` on a file that isn't a replay.
+- `getBeatmapByChecksum(md5)`: a difficulty by its `.osu` MD5, or null.
+
 ## [0.8.0] - 2026-10-10
 
 ### Added

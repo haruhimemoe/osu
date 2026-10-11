@@ -90,6 +90,29 @@ const server = setupServer(
   http.post("https://osu.ppy.sh/oauth/token", () =>
     HttpResponse.json({ expires_in: 86400, access_token: "token" }),
   ),
+  http.get(`${BASE}/beatmaps/lookup`, ({ request }) => {
+    requests.push(request);
+    const checksum = new URL(request.url).searchParams.get("checksum");
+    if (checksum !== "a5b99395a42bd55bc5eb1d2411cbdf8b")
+      return new HttpResponse(null, { status: 404 });
+    return HttpResponse.json({
+      id: 75,
+      beatmapset_id: 1,
+      mode: "osu",
+      version: "Normal",
+      difficulty_rating: 2.55,
+      cs: 4,
+      ar: 6,
+      accuracy: 6,
+      drain: 6,
+      bpm: 120,
+      total_length: 142,
+      checksum,
+      max_combo: 314,
+      status: "ranked",
+      beatmapset: { artist: "Kenji Ninuma", title: "DISCOPRINCE", creator: "peppy", user_id: 2 },
+    });
+  }),
   http.get(`${BASE}/scores/:id/download`, ({ request, params }) => {
     requests.push(request);
     if (params.id === "404") return new HttpResponse(null, { status: 404 });
@@ -297,6 +320,19 @@ describe("getBeatmap", () => {
     });
     expect(await client().getBeatmap(404)).toBeNull();
     await expect(client().getBeatmap(-1)).rejects.toThrow(RangeError);
+  });
+});
+
+describe("getBeatmapByChecksum", () => {
+  it("finds a difficulty by MD5, null when none, and checks the hash", async () => {
+    const osu = client();
+    expect(await osu.getBeatmapByChecksum("A5B99395A42BD55BC5EB1D2411CBDF8B")).toMatchObject({
+      beatmapId: 75,
+      maxCombo: 314,
+      status: "ranked",
+    });
+    expect(await osu.getBeatmapByChecksum("0".repeat(32))).toBeNull();
+    await expect(osu.getBeatmapByChecksum("nope")).rejects.toBeInstanceOf(RangeError);
   });
 });
 
