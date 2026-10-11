@@ -104,6 +104,15 @@ describe("retries", () => {
     expect(slept).toEqual([]);
   });
 
+  it("caps the total wait across retries at maxWaitMs", async () => {
+    answers = [status(429, { "retry-after": "6" }), status(429, { "retry-after": "6" })];
+    const err = await client()
+      .getUser(2)
+      .catch((e: unknown) => e);
+    expect(err).toMatchObject({ status: 429, retryAfterMs: 6000, attempts: 2 });
+    expect(slept).toEqual([6000]);
+  });
+
   it("retries other 5xx once on GET, never 4xx", async () => {
     answers = [status(500), status(500)];
     await expect(client().getUser(2)).rejects.toMatchObject({ status: 500, attempts: 2 });

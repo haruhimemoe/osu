@@ -22,7 +22,7 @@ export const OSU_MATCH_EVENTS_LIMIT = 100;
 export const OSU_MATCH_PAGE_LIMIT = 50;
 /** Default retries after a 429, 503 or (GET) 5xx. */
 export const OSU_RETRY_ATTEMPTS = 2;
-/** Default longest single wait before a retry. */
+/** Default longest total wait across one call's retries. */
 export const OSU_RETRY_MAX_WAIT_MS = 10_000;
 /** Default time a single request may take. */
 export const OSU_TIMEOUT_MS = 10_000;
@@ -41,7 +41,7 @@ export type ClientSettings = {
   timeoutMs: number;
   fetch: (input: string | URL, init?: RequestInit) => Promise<Response>;
   now: () => number;
-  /** Retries after the first call, and the longest single wait. */
+  /** Retries after the first call, and the longest total wait across them. */
   retry: { attempts: number; maxWaitMs: number };
   sleep: (ms: number) => Promise<void>;
   /** Reads (or calls for) the credentials and checks them; called once per token request. */

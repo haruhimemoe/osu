@@ -43,7 +43,8 @@ export type OsuClientOptions = {
   /**
    * Retries after a 429 or 503 (waiting osu!'s Retry-After, else 1 s, 2 s, 4 s), and once after
    * another 5xx on a GET. `attempts` is retries after the first call (0 to 5), `maxWaitMs` the
-   * longest single wait (0 to 60_000; a longer Retry-After fails at once). Default
+   * longest total wait across a call's retries (0 to 60_000; a retry that would pass it fails at
+   * once instead). Default
    * { attempts: 2, maxWaitMs: 10_000 }; false never retries. beforeCall is asked before each retry.
    */
   retry?: { attempts?: number | undefined; maxWaitMs?: number | undefined } | false | undefined;

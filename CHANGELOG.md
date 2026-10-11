@@ -17,7 +17,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
-- The client now retries a 429 or 503: it waits osu!'s `Retry-After` (or 1 s, 2 s, 4 s), at most 10 s per wait, twice by default. Another 5xx is retried once on a GET. `beforeCall` is asked before each retry. A call that used to fail at once on a 429 may now succeed a few seconds later; pass `retry: false` to keep the 0.9 behavior.
+- **Retries are on by default.** The client now retries a 429 or 503: it waits osu!'s `Retry-After` (or 1 s, 2 s, 4 s), twice by default, at most 10 s of waiting in total per call. Another 5xx is retried once on a GET. A call that used to fail at once on a 429 may now succeed (or fail) up to 10 s later, plus the retried requests' own `timeoutMs`. Pass `retry: false` to keep the 0.9 behavior.
+- **`beforeCall` now runs once per HTTP call, retries included.** A budget counter that `beforeCall` increments goes up for each retry. If your code already retries on `retryAfterMs`, pass `retry: false` or drop your own loop so osu! isn't asked twice.
 
 ## [0.9.0] - 2026-10-10
 

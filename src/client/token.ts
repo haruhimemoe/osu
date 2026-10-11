@@ -114,6 +114,7 @@ export const createAuthorizer = (settings: ClientSettings, transport: Transport)
     const method = init.method ?? "GET";
     let attempts = 1;
     let serverRetried = false;
+    let waited = 0;
     let response = await once();
     while (attempts <= settings.retry.attempts) {
       const { status } = response;
@@ -123,8 +124,10 @@ export const createAuthorizer = (settings: ClientSettings, transport: Transport)
       const header = busy ? parseRetryAfter(response.headers.get("retry-after"), now()) : null;
       const backoff = BACKOFF_MS[attempts - 1] ?? 4000;
       const wait = header ?? Math.round(backoff * (1 + Math.random() * 0.25));
-      // Too long to wait here: hand the answer back so failFor reports its Retry-After.
-      if (wait > settings.retry.maxWaitMs) break;
+      // maxWaitMs caps the total sleep across retries, so a call never waits past it. Too long:
+      // hand the answer back so failFor reports its Retry-After.
+      if (waited + wait > settings.retry.maxWaitMs) break;
+      waited += wait;
       release(response);
       if (init.beforeRetry && !(await init.beforeRetry())) {
         throw new OsuApiError("budget", "beforeCall refused the osu! call.", { attempts });
