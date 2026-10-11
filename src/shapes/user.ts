@@ -47,6 +47,7 @@ export const toOsuUser = (raw: unknown): OsuUser => {
 /** GET /api/v2/users/{id}/{ruleset}, reduced to OsuUserProfile's fields, in osu!'s snake_case. */
 export const osuUserProfileSchema = osuUserSchema.extend({
   playmode: z.enum(RULESETS).nullish(),
+  page: z.object({ raw: z.string(), html: z.string() }).nullish(),
   join_date: z.string().nullish(),
   is_supporter: z.boolean().nullish(),
   cover: z.object({ url: z.string().nullish() }).nullish(),
@@ -99,6 +100,8 @@ export type OsuUserProfile = OsuUser & {
   joinDate: string | null;
   supporter: boolean;
   coverUrl: string | null;
+  /** The "me!" page: BBCode as written and osu!'s HTML. null when it's empty or not sent. */
+  page: { raw: string; html: string } | null;
   statistics: OsuUserStatistics;
 };
 
@@ -119,6 +122,7 @@ export const toOsuUserProfile = (raw: unknown): OsuUserProfile => {
     joinDate: profile.join_date ?? null,
     supporter: profile.is_supporter ?? false,
     coverUrl: profile.cover?.url ?? null,
+    page: profile.page && (profile.page.raw || profile.page.html) ? profile.page : null,
     statistics: {
       pp: stats.pp ?? 0,
       globalRank: stats.global_rank ?? null,

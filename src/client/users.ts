@@ -10,13 +10,19 @@
 
 import { z } from "zod";
 import { RULESETS } from "../shapes/beatmap.js";
-import { type OsuUser, osuUserSchema, toOsuUser } from "../shapes/user.js";
+import {
+  type OsuUser,
+  osuUserProfileSchema,
+  osuUserSchema,
+  toOsuUser,
+  toOsuUserProfile,
+} from "../shapes/user.js";
 import { OsuApiError } from "./errors.js";
 import { release, type Transport } from "./http.js";
 import { isId } from "./options.js";
 import { fetchRows } from "./rows.js";
 import type { AuthorizedInit } from "./token.js";
-import type { UserLookup, UserOptions, UsersOptions } from "./types.js";
+import type { BeatmapOptions, UserLookup, UserOptions, UsersOptions } from "./types.js";
 
 const usersResponseSchema = z.object({ users: z.array(z.unknown()) });
 const alwaysCall = async (): Promise<boolean> => true;
@@ -83,6 +89,35 @@ export const createUserLookups = ({ baseUrl, authorized, transport }: UserDeps) 
     if (!response.ok) return transport.failFor(response, `osu! answered ${response.status}.`);
     const body = await transport.readJson(response);
     return toOsuUser(transport.readAs(osuUserSchema, body, response.status));
+  },
+
+  /**
+   * @function getUserPage
+   * @param user {number | string} an osu! id, or a username
+   * @param options {BeatmapOptions} beforeCall, asked once before the call (your budget)
+   * @returns {Promise<{ raw: string; html: string } | null>} the "me!" page (BBCode as written and
+   *          osu!'s HTML), or null when the user doesn't exist (404) or never wrote one
+   * @throws {OsuApiError} code "budget" when beforeCall refuses; otherwise on a refused token, an
+   *         error status (after retries), a body without an id and username, a timeout, or a
+   *         network failure
+   * @throws {RangeError} when the id or name isn't valid (before any call)
+   */
+  async getUserPage(
+    user: number | string,
+    { beforeCall = alwaysCall }: BeatmapOptions = {},
+  ): Promise<{ raw: string; html: string } | null> {
+    const path = userPath(user, undefined);
+    if (!(await beforeCall())) {
+      throw new OsuApiError("budget", "beforeCall refused the osu! call.");
+    }
+    const response = await authorized(`${baseUrl}/api/v2${path}`, { beforeRetry: beforeCall });
+    if (response.status === 404) {
+      release(response);
+      return null;
+    }
+    if (!response.ok) return transport.failFor(response, `osu! answered ${response.status}.`);
+    const body = await transport.readJson(response);
+    return toOsuUserProfile(transport.readAs(osuUserProfileSchema, body, response.status)).page;
   },
 
   /**

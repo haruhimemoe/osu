@@ -8,7 +8,8 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { toOsuUser } from "../src/index.js";
+import { toOsuUser, toOsuUserProfile } from "../src/index.js";
+import pageFixture from "./fixtures/user-page.json" with { type: "json" };
 
 const PROFILE = {
   id: 2,
@@ -42,5 +43,25 @@ describe("toOsuUser", () => {
 
   it("refuses a profile with no id instead of merging strangers into one account", () => {
     expect(() => toOsuUser({ username: "nobody" })).toThrow();
+  });
+});
+
+describe("toOsuUserProfile page", () => {
+  const base = { id: 2, username: "peppy" };
+
+  it("reads the user page", () => {
+    expect(
+      toOsuUserProfile({ ...base, page: { raw: "[b]hi[/b]", html: "<b>hi</b>" } }).page,
+    ).toEqual({ raw: "[b]hi[/b]", html: "<b>hi</b>" });
+  });
+
+  it("reads an empty or missing page as null", () => {
+    expect(toOsuUserProfile({ ...base, page: { raw: "", html: "" } }).page).toBeNull();
+    expect(toOsuUserProfile({ ...base, page: null }).page).toBeNull();
+    expect(toOsuUserProfile(base).page).toBeNull();
+  });
+
+  it("reads the captured live answer", () => {
+    expect(toOsuUserProfile(pageFixture).page?.raw.length).toBeGreaterThan(0);
   });
 });

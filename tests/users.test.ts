@@ -150,3 +150,35 @@ describe("getUsers", () => {
     await expect(client().getUsers([2])).rejects.toMatchObject({ code: "bad_response" });
   });
 });
+
+describe("getUserPage", () => {
+  const page = { raw: "[b]hi[/b]", html: "<b>hi</b>" };
+  const serveUsers = () =>
+    server.use(
+      http.get(USER_URL, ({ request, params }) => {
+        requests.push(new URL(request.url));
+        if (params.user === "2") return HttpResponse.json({ ...PEPPY, page });
+        if (params.user === "3")
+          return HttpResponse.json({ id: 3, username: "blank", page: { raw: "", html: "" } });
+        return new HttpResponse(null, { status: 404 });
+      }),
+    );
+
+  it("returns the raw and html page from /users/{id}", async () => {
+    serveUsers();
+    expect(await client().getUserPage(2)).toEqual(page);
+    expect(requests[0]?.pathname).toBe("/api/v2/users/2");
+  });
+
+  it("returns null with an empty page or no user", async () => {
+    serveUsers();
+    expect(await client().getUserPage(3)).toBeNull();
+    expect(await client().getUserPage(404404)).toBeNull();
+  });
+
+  it("asks the budget", async () => {
+    await expect(client().getUserPage(2, { beforeCall: async () => false })).rejects.toMatchObject({
+      code: "budget",
+    });
+  });
+});
