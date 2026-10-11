@@ -9,6 +9,7 @@
 
 export * from "./beatmap.js";
 export * from "./beatmapset.js";
+export * from "./forum.js";
 export * from "./links.js";
 export * from "./match.js";
 export * from "./score.js";
