@@ -67,6 +67,16 @@ describe("forum shapes", () => {
     expect(page.posts.map((p) => p.body)).toEqual([null, null]);
   });
 
+  it("reads missing authors and edit times as null", () => {
+    const page = toOsuForumTopicPage({
+      topic: { ...TOPIC, user_id: null },
+      posts: [{ ...POST(100, null), user_id: undefined, edited_at: undefined }],
+    });
+    expect(page.topic.userId).toBeNull();
+    expect(page.posts[0]).toMatchObject({ userId: null, editedAt: null });
+    expect(page.cursor).toBeNull();
+  });
+
   it("maps a topic list", () => {
     expect(toOsuForumTopicList({ topics: [TOPIC], cursor_string: null })).toEqual({
       topics: [expect.objectContaining({ id: 10 })],

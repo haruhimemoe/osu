@@ -101,6 +101,7 @@ describe("getForumTopic", () => {
     await expect(client().getForumTopic(0)).rejects.toThrow(RangeError);
     await expect(client().getForumTopic(10, { limit: 51 })).rejects.toThrow(RangeError);
     await expect(client().getForumTopic(10, { limit: 0 })).rejects.toThrow(RangeError);
+    await expect(client().getForumTopic(10, { start: 0 })).rejects.toThrow(RangeError);
     expect(requests).toEqual([]);
   });
 
@@ -109,6 +110,21 @@ describe("getForumTopic", () => {
       client().getForumTopic(10, { beforeCall: async () => false }),
     ).rejects.toMatchObject({ code: "budget" });
     expect(requests).toEqual([]);
+  });
+});
+
+describe("getForumTopic errors", () => {
+  it("throws an OsuApiError on an error status", async () => {
+    server.use(
+      http.get(
+        "https://osu.ppy.sh/api/v2/forums/topics/:id",
+        () => new HttpResponse(null, { status: 403 }),
+      ),
+    );
+    await expect(client().getForumTopic(10)).rejects.toMatchObject({
+      code: "http_error",
+      status: 403,
+    });
   });
 });
 

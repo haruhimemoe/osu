@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-11
+
+### Added
+
+- Forum reads: `getForumTopic(topicId, { sort, limit, cursor, start })`, `getForumPost({ topicId, postId })` and `listForumTopics({ forumId, sort, limit, cursor })`. Posts carry `body.raw`, the BBCode as written. Cursor paging, null on 404, and the client's own `public` token is enough. For bb's forum post import.
+- Forum shapes in `/shapes`: `osuForumPostSchema`, `osuForumTopicSchema`, `osuForumTopicPageSchema`, `osuForumTopicListSchema`, `toOsuForumTopicPage`, `toOsuForumTopicList`, `parseForumUrl`, and the types `OsuForumPost`, `OsuForumTopic`, `OsuForumTopicPage`, `OsuForumTopicList`. `OSU_FORUM_PAGE_LIMIT` (50) and the option types `ForumTopicOptions`, `ListForumTopicsOptions`.
+- `getUserPage(user)`: a user's "me!" page as `{ raw, html }`, or null. `OsuUserProfile` gains `page`.
+- The `retry` and `sleep` client options, `OSU_RETRY_ATTEMPTS` (2), `OSU_RETRY_MAX_WAIT_MS` (10,000), and `attempts` on `OsuApiError`.
+
+### Changed
+
+- The client now retries a 429 or 503: it waits osu!'s `Retry-After` (or 1 s, 2 s, 4 s), at most 10 s per wait, twice by default. Another 5xx is retried once on a GET. `beforeCall` is asked before each retry. A call that used to fail at once on a 429 may now succeed a few seconds later; pass `retry: false` to keep the 0.9 behavior.
+
 ## [0.9.0] - 2026-10-10
 
 ### Added

@@ -66,7 +66,8 @@ The client uses the client credentials grant with scope `public`. It asks for a 
 - **`credentials`** (required): `{ clientId, clientSecret }`, or a function that returns it. Both fields must be strings that aren't blank, else you get a `TypeError` that names the field but not its value. An object is checked when you create the client. A function is called on every token request (the first call, each refresh, and after a 401), never at import, so importing the module never needs env and a rotated secret is picked up. If it throws, its error reaches you unchanged.
 - **`baseUrl`** (default `https://osu.ppy.sh`): token requests go here too, so this server receives your client secret. Point it only at osu! itself or your own test server, never at a mirror. It must be an absolute `https` URL, or `http` on `localhost` / `127.0.0.1`, else `createOsuClient` throws a `RangeError`. Trailing slashes are dropped.
 - **`timeoutMs`** (default `10000`): each request, answer and body, gives up after this long, so a hung osu! call can't hold a serverless function. It must be an integer from 1 to 2147483647, else `RangeError`.
-- **`fetch`** and **`now`**: for tests. `fetch` replaces `globalThis.fetch`. `now` replaces `Date.now` as the clock for token expiry and for turning a `Retry-After` date into `retryAfterMs`.
+- **`retry`** (default `{ attempts: 2, maxWaitMs: 10000 }`): what to do when osu! answers 429 (rate limited) or 503 (briefly down). The client waits osu!'s `Retry-After`, or 1 s, then 2 s, then 4 s (plus up to 25% jitter) when osu! sends none, and tries again, up to `attempts` times. Another 5xx on a GET is retried once. Other 4xx answers are never retried. A wait longer than `maxWaitMs` isn't waited: the call fails at once with that `retryAfterMs`, so a serverless function never sleeps through its own timeout. `attempts` is an integer from 0 to 5 and `maxWaitMs` from 0 to 60000, else `RangeError`. `retry: false` never retries (the 0.9 behavior).
+- **`fetch`**, **`now`** and **`sleep`**: for tests. `fetch` replaces `globalThis.fetch`. `now` replaces `Date.now` as the clock for token expiry and for turning a `Retry-After` date into `retryAfterMs`. `sleep(ms)` replaces the wait between retries.
 
 ### Methods
 
@@ -112,6 +113,18 @@ The score methods send `x-api-version: 20220705` (`OSU_SCORES_API_VERSION`), so 
 
 Scores come in osu!'s classic format: mods as acronyms and `count_miss`. A live match is read as it stands: games still being played have `endTime: null`.
 
+**`getUserPage(user, { beforeCall })`** reads `/api/v2/users/{id}` (or `@{name}`) and returns the user's "me!" page as `{ raw, html }`: `raw` is the BBCode as they wrote it, `html` is osu!'s rendering. Null when osu! answers 404 or the page is empty. `getUserProfile` carries the same thing as `page`.
+
+#### Forum
+
+**`getForumTopic(topicId, { beforeCall, sort, limit, cursor, start })`** reads `/api/v2/forums/topics/{id}` and returns an `OsuForumTopicPage`: the `topic`, one page of `posts` (each with `body.raw`, the BBCode as written, and `body.html`), and `cursor` for the next page (null on the last). `sort` is `"id_asc"` (oldest first, osu!'s default) or `"id_desc"`. `limit` is 1 to 50 (`OSU_FORUM_PAGE_LIMIT`). `start` is a post id: the page begins at the first post at or after it. A deleted post's `body` is null. Null on 404.
+
+**`getForumPost({ topicId, postId }, { beforeCall })`** returns one post, or null when the topic is gone or doesn't hold that post. osu! has no lookup by post id alone, so it needs the topic too: `parseForumUrl(link)` (in `/shapes`) reads `{ topicId, postId }` from `https://osu.ppy.sh/community/forums/topics/{topic}?start={post}`, and `{ topicId: null, postId }` from a bare `/community/forums/posts/{post}` link.
+
+**`listForumTopics({ beforeCall, forumId, sort, limit, cursor })`** reads `/api/v2/forums/topics` and returns `{ topics, cursor }` without posts. `forumId` keeps one forum's topics (every forum when left out), `sort` is `"new"` or `"old"`, `limit` is 1 to 50. Pass the returned `cursor` back for the next page.
+
+Each forum method makes one call, rejects with code `"budget"` when `beforeCall` refuses, and throws `RangeError` for a bad id, `start`, `forumId` or `limit` before anything is sent. They work with the client's own token (scope `public`): no user sign-in needed.
+
 ### Errors
 
 Every failure talking to osu! is an `OsuApiError` with:
@@ -119,6 +132,7 @@ Every failure talking to osu! is an `OsuApiError` with:
 - `code`: `"timeout"`, `"network"`, `"bad_response"` (not JSON, or not the expected shape), `"http_error"`, or `"budget"` (`getStarRating`, `getUser` and `getMatch`). Branch on the ones you know; later versions may add codes.
 - `status`: osu!'s HTTP status, or null when there was none (network failure, timeout before an answer, budget).
 - `retryAfterMs`: osu!'s `Retry-After` on a 429 or 503, in delta-seconds or as an HTTP date (`Tue, 29 Sep 2026 12:00:03 GMT`), capped at 60 s. Null when osu! sent none or sent it in any other form.
+- `attempts`: how many calls the client made before giving up, 1 when nothing was retried (see the `retry` option).
 - `cause`: the underlying error, when there is one.
 
 Other errors are yours. `createOsuClient` throws a `RangeError` for a bad `timeoutMs` or `baseUrl`, `getBeatmapsets` for a bad `fallbackLimit`, `getStarRating` for an `id` that isn't a positive safe integer, `getUser` for a bad id, a blank name or an unknown ruleset, and `getMatch` for a bad match or `maxPages`. Bad credentials or a bad `userAgent` throw a `TypeError`. Each is thrown before the request it would affect is sent. Nothing else is checked: bad ids given to `getBeatmaps` or `getBeatmapsets` never throw (they're sorted as described above), and `mods` goes to osu! as given. An error thrown by your `credentials` function or `beforeCall` comes through unchanged.
@@ -139,7 +153,7 @@ try {
 
 ### Staying under osu!'s rate limit
 
-osu! asks API users to stay at or under 60 requests a minute, and to cache what they fetch. Budget per OAuth app, not per request handler: if several features or serverless instances share one app, give them one counter. By default there is no budget: `getBeatmaps` with 5,000 ids makes 100 calls back to back. Pass `beforeCall` to every method. They ask it before each planned osu! call and skip the call when it returns false: `getBeatmaps`, `getBeatmapsets` and `getUsers` put that call's ids in `unchecked`, `getStarRating`, `getUser` and `getMatch` reject with code `"budget"` (`getMatch` only for its first page; a later page refused ends the call with `complete: false`). Token requests aren't counted, and neither is the one retry after a 401. So one approved call can cost two API calls and up to two token requests: one when no token is cached yet, and one for a fresh token after the 401. Leave headroom for that.
+osu! asks API users to stay at or under 60 requests a minute, and to cache what they fetch. Budget per OAuth app, not per request handler: if several features or serverless instances share one app, give them one counter. By default there is no budget: `getBeatmaps` with 5,000 ids makes 100 calls back to back. Pass `beforeCall` to every method. They ask it before each planned osu! call and skip the call when it returns false: `getBeatmaps`, `getBeatmapsets` and `getUsers` put that call's ids in `unchecked`, `getStarRating`, `getUser` and `getMatch` reject with code `"budget"` (`getMatch` only for its first page; a later page refused ends the call with `complete: false`). Retries after a 429, 503 or 5xx ask `beforeCall` again first, and a refusal ends the call with code `"budget"`. Token requests aren't counted, and neither is the one retry after a 401. So one approved call can cost two API calls and up to two token requests: one when no token is cached yet, and one for a fresh token after the 401. Leave headroom for that.
 
 ```ts
 // A fixed-window counter shared by every instance (MongoDB driver 7 here; any atomic store works).
@@ -178,8 +192,10 @@ await osu.getStarRating(129891, ["HD"], { beforeCall });
 | `UserOptions`, `UserLookup`, `UsersOptions` | `getUser`'s options (`beforeCall`, `ruleset`); `getUsers`' result and options. |
 | `UserScoreType`, `UserScoresOptions`, `BeatmapScoresOptions`, `BeatmapDetail` | `getUserScores`' type and options, `getBeatmapScores`' and `getBeatmapUserScores`' options, and `getBeatmap`'s result. |
 | `OSU_SCORES_API_VERSION`, `OSU_SCORES_LIMIT` | The `x-api-version` the score methods send (`"20220705"`), and the most scores one call returns (100). |
+| `ForumTopicOptions`, `ListForumTopicsOptions`, `OSU_FORUM_PAGE_LIMIT` | `getForumTopic`'s and `listForumTopics`' options, and the most posts or topics one page holds (50). |
+| `OSU_RETRY_ATTEMPTS`, `OSU_RETRY_MAX_WAIT_MS` | The `retry` defaults: 2 retries, 10,000 ms longest wait. |
 | `MatchOptions`, `MatchLookup` | `getMatch`'s options (`beforeCall`, `maxPages`) and result (`{ match, complete }`). |
-| `OsuApiError`, `OsuApiErrorCode` | The error, and its `code` values. `new OsuApiError(code, message, { status, retryAfterMs, cause })` builds one, for tests. |
+| `OsuApiError`, `OsuApiErrorCode` | The error, and its `code` values. `new OsuApiError(code, message, { status, retryAfterMs, attempts, cause })` builds one, for tests. |
 | `OSU_BEATMAPS_BATCH_LIMIT`, `OSU_BEATMAPSET_FALLBACK_LIMIT`, `OSU_TIMEOUT_MS` | 50 ids per `/beatmaps` call, the default `fallbackLimit` (10), the default `timeoutMs` (10,000). |
 | `OSU_MATCH_EVENTS_LIMIT`, `OSU_MATCH_PAGE_LIMIT` | 100 events per `/matches/{id}` page, and the default `maxPages` (50). |
 | `BEATMAPSET_FALLBACK_LIMIT` | Deprecated: the old name of `OSU_BEATMAPSET_FALLBACK_LIMIT`, same value. |
@@ -228,7 +244,12 @@ export const signedIn = async (accessToken: string) => {
 | `OsuBeatmapsetExtended`, `isExtendedBeatmapset` | A set with `availability`, `track_id` and `tags` all present (`track_id` and `tags` may be null), and the type guard that checks it. A compact set needs `/api/v2/beatmapsets/{id}`. Pass an extended set to [`@haruhimemoe/compliance`](https://github.com/haruhimemoe/compliance)'s `factsFromOsuBeatmapset`. |
 | `osuBeatmapsetRowSchema` | A `/api/v2/beatmaps` row reduced to `id`, `beatmapset_id` and its `beatmapset`. |
 | `osuUserSchema`, `toOsuUser`, `OsuUser` | The signed-in user from `/api/v2/me`. `osuUserSchema` keeps osu!'s names: `id`, `username`, and `avatar_url`, `country_code` and `country.code`, each optional or null. `toOsuUser` takes the raw profile and returns an `OsuUser`, `{ osuId, username, avatarUrl, countryCode }`, reading the country from `country.code`, else `country_code`. It throws a `ZodError` when there's no id or username. osu! never shares an email. |
-| `osuUserProfileSchema`, `toOsuUserProfile`, `OsuUserProfile`, `OsuUserStatistics` | A `/api/v2/users/{id}/{ruleset}` profile and its mapping (see `getUserProfile`). |
+| `osuUserProfileSchema`, `toOsuUserProfile`, `OsuUserProfile`, `OsuUserStatistics` | A `/api/v2/users/{id}/{ruleset}` profile and its mapping (see `getUserProfile`). `page` is the "me!" page as `{ raw, html }`, null when empty. |
+| `osuForumTopicPageSchema`, `toOsuForumTopicPage`, `OsuForumTopicPage` | A `/api/v2/forums/topics/{id}` answer as `{ topic, posts, cursor }`. |
+| `osuForumTopicListSchema`, `toOsuForumTopicList`, `OsuForumTopicList` | A `/api/v2/forums/topics` answer as `{ topics, cursor }`. |
+| `osuForumTopicSchema`, `OsuForumTopic` | A topic: `{ id, forumId, title, userId, postCount, createdAt, firstPostId, lastPostId, isLocked, type }`. |
+| `osuForumPostSchema`, `OsuForumPost` | A post: `{ id, topicId, forumId, userId, createdAt, editedAt, body }`. `body` is `{ raw, html }`, or null for a deleted post. |
+| `parseForumUrl` | `{ topicId, postId }` from an osu! forum link: `/community/forums/topics/{id}` (with `?start={post}` for a post), `/community/forums/posts/{id}` (topic null), or the old `/forum/t/` and `/forum/p/`. null for anything else, including other sites. |
 | `osuScoreSchema`, `OsuScoreRow`, `toOsuScore`, `OsuScore` | A lazer-format score row and its mapping: `{ id, userId, beatmapId, ruleset, mods, accuracy, maxCombo, statistics, maximumStatistics, rank, pp, totalScore, legacyTotalScore, passed, perfectCombo, endedAt, weightedPp, beatmap, beatmapset, user }`. `accuracy` is 0 to 1; `pp` is null on unranked maps; `weightedPp` is set in a top-plays list. `beatmap`, `beatmapset` and `user` are summaries (`OsuScoreBeatmap`, `OsuScoreBeatmapset`, `OsuScoreUser`) or null when osu! didn't send them. |
 | `osuModSchema`, `OsuMod`, `SCORE_RANKS`, `ScoreRank` | A mod (`{ acronym, settings? }`), and the grades `XH`, `X`, `SH`, `S`, `A`, `B`, `C`, `D`, `F`. |
 | `OSU_BASE_URL`, `OSU_OAUTH`, `OSU_SIGN_IN_SCOPES` | `https://osu.ppy.sh`; the sign-in endpoints (`authorizationUrl`, `tokenUrl`, and `userInfoUrl` for `/api/v2/me`); and the scopes `["identify", "public"]`. |
