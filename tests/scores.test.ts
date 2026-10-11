@@ -90,6 +90,18 @@ const server = setupServer(
   http.post("https://osu.ppy.sh/oauth/token", () =>
     HttpResponse.json({ expires_in: 86400, access_token: "token" }),
   ),
+  http.get(`${BASE}/scores/:id/download`, ({ request, params }) => {
+    requests.push(request);
+    if (params.id === "404") return new HttpResponse(null, { status: 404 });
+    if (params.id === "500") return new HttpResponse(null, { status: 500 });
+    return new HttpResponse(new Uint8Array([1, 2, 3]), {
+      headers: { "content-type": "application/x-osu-replay" },
+    });
+  }),
+  http.get(`${BASE}/scores/:mode/:id/download`, ({ request }) => {
+    requests.push(request);
+    return new HttpResponse(new Uint8Array([9]));
+  }),
   http.get(`${BASE}/users/:user/scores/:type`, ({ request, params }) => {
     requests.push(request);
     if (params.user === "404") return new HttpResponse(null, { status: 404 });
@@ -285,6 +297,22 @@ describe("getBeatmap", () => {
     });
     expect(await client().getBeatmap(404)).toBeNull();
     await expect(client().getBeatmap(-1)).rejects.toThrow(RangeError);
+  });
+});
+
+describe("getScoreReplay", () => {
+  it("downloads by score id or by ruleset and legacy id, null on 404", async () => {
+    requests = [];
+    const osu = client();
+    expect(await osu.getScoreReplay(77)).toEqual(new Uint8Array([1, 2, 3]));
+    expect(await osu.getScoreReplay(5, { ruleset: "taiko" })).toEqual(new Uint8Array([9]));
+    expect(new URL(requests[1]?.url ?? "").pathname).toBe("/api/v2/scores/taiko/5/download");
+    expect(await osu.getScoreReplay(404)).toBeNull();
+    await expect(osu.getScoreReplay(500)).rejects.toBeInstanceOf(OsuApiError);
+    await expect(osu.getScoreReplay(0)).rejects.toBeInstanceOf(RangeError);
+    await expect(osu.getScoreReplay(1, { beforeCall: async () => false })).rejects.toMatchObject({
+      code: "budget",
+    });
   });
 });
 

@@ -97,6 +97,8 @@ The client uses the client credentials grant with scope `public`. It asks for a 
 
 **`getBeatmap(beatmapId, { beforeCall })`** reads one difficulty from `/beatmaps/{id}` as a `BeatmapDetail`: its `BeatmapMeta` plus `maxCombo` and `status` (`"ranked"`, `"loved"`, `"graveyard"` and so on). Null on 404.
 
+**`getScoreReplay(scoreId, { beforeCall, ruleset })`** downloads a score's replay from `/scores/{id}/download` as `.osr` bytes (a `Uint8Array`). Pass `ruleset` with a stable score's legacy id (`osu.ppy.sh/scores/osu/<id>`). Null on 404, which is also what osu! sends for a score it keeps no replay of.
+
 The score methods send `x-api-version: 20220705` (`OSU_SCORES_API_VERSION`), so osu! answers in the lazer score format: mods as `{ acronym, settings }`, statistics by judgement name (`great`, `ok`, `meh`, `miss`, ...). A score row that fails our schema is left out of the list. Each makes one call, rejects with code `"budget"` when `beforeCall` refuses, and throws `RangeError` for a bad id, type, ruleset, `limit` or `offset` before anything is sent.
 
 **`getMatch(match, { beforeCall, maxPages })`** reads a multiplayer match from `/api/v2/matches/{id}`. `match` is an id or an mp link (`https://osu.ppy.sh/community/matches/{id}` or `https://osu.ppy.sh/mp/{id}`, the scheme optional). osu! sends a match's events 100 at a time, newest first, so `getMatch` asks again with `before` until it reaches the match's first event. It returns `{ match, complete }`, or null when osu! answers 404 for the first page.

@@ -2,7 +2,8 @@
  * @file src/client/scores.ts
  * @desc Score and profile lookups for createOsuClient (0.6): a user's profile with one ruleset's
  *       statistics, a user's best, recent or first-place scores, a user's scores on one map, a
- *       map's global leaderboard, and one difficulty with its max combo and ranked status. Score
+ *       map's global leaderboard, one difficulty with its max combo and ranked status, and a
+ *       score's replay (0.8). Score
  *       calls send `x-api-version: 20220705`, so osu! answers in the lazer score format. A row
  *       that fails the schema is left out of a list, never guessed at.
  * @author David @dvhsh (https://dvh.sh)
@@ -257,6 +258,47 @@ export const createScoreLookups = ({ baseUrl, authorized, transport }: ScoreDeps
         maxCombo: row.max_combo ?? null,
         status: row.status ?? null,
       };
+    },
+
+    /**
+     * @function getScoreReplay
+     * @param id {number} a score id (osu.ppy.sh/scores/<id>), or a stable score's legacy id with
+     *        `ruleset` (osu.ppy.sh/scores/<ruleset>/<id>)
+     * @param options {{ beforeCall?: () => Promise<boolean>; ruleset?: Ruleset }} beforeCall,
+     *        asked once, and the ruleset for a legacy id
+     * @returns {Promise<Uint8Array | null>} the replay's .osr bytes, or null when osu! has no
+     *          such score or keeps no replay of it (404)
+     * @throws {OsuApiError} code "budget" when beforeCall refuses; otherwise on a refused token,
+     *         an error status, a timeout, or a network failure
+     * @throws {RangeError} when the id or ruleset isn't valid (before any call)
+     */
+    async getScoreReplay(
+      id: number,
+      {
+        beforeCall = alwaysCall,
+        ruleset,
+      }: { beforeCall?: () => Promise<boolean>; ruleset?: Ruleset } = {},
+    ): Promise<Uint8Array | null> {
+      checkId(id, "A score id");
+      const mode = checkRuleset(ruleset);
+      if (!(await beforeCall())) {
+        throw new OsuApiError("budget", "beforeCall refused the osu! call.");
+      }
+      const path = mode ? `/scores/${mode}/${id}/download` : `/scores/${id}/download`;
+      const response = await authorized(new URL(`${baseUrl}/api/v2${path}`));
+      if (response.status === 404) {
+        release(response);
+        return null;
+      }
+      if (!response.ok) return transport.failFor(response, `osu! answered ${response.status}.`);
+      try {
+        return new Uint8Array(await response.arrayBuffer());
+      } catch (cause) {
+        throw new OsuApiError("bad_response", "osu! sent a replay we couldn't read.", {
+          status: response.status,
+          cause,
+        });
+      }
     },
   };
 };

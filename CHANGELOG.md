@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-10
+
+### Added
+
+- `getScoreReplay(id, { ruleset })`: a score's replay as `.osr` bytes, or null when osu! keeps none. Pass `ruleset` for a stable score's legacy id.
+
 ### Changed
 
 - CI runs CodeQL and a gitleaks scan of the full git history, and Dependabot covers dependencies and pinned actions. Dependencies are on their latest versions.
