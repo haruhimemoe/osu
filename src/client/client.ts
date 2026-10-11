@@ -20,6 +20,7 @@ import {
   osuBeatmapsetSchema,
 } from "../shapes/beatmapset.js";
 import { OsuApiError } from "./errors.js";
+import { createForumLookups } from "./forum.js";
 import { createTransport, release } from "./http.js";
 import { createMatchLookups } from "./matches.js";
 import { isId, OSU_BEATMAPSET_FALLBACK_LIMIT, resolveOptions } from "./options.js";
@@ -47,7 +48,8 @@ const alwaysCall = async (): Promise<boolean> => true;
  * @param options {OsuClientOptions} credentials, User-Agent, and optional base URL, timeout,
  *        fetch and clock
  * @returns {{ getBeatmaps, getBeatmapsets, getStarRating, getBeatmap, getUser, getUsers,
- *          getUserProfile, getUserScores, getBeatmapUserScores, getBeatmapScores, getMatch }}
+ *          getUserProfile, getUserScores, getBeatmapUserScores, getBeatmapScores, getMatch,
+ *          getForumTopic, getForumPost, listForumTopics }}
  *          the client;
  *          create one per process and reuse it so the token is shared
  * @throws {TypeError} when userAgent is blank or holds anything but printable ASCII, or
@@ -131,6 +133,7 @@ export const createOsuClient = (options: OsuClientOptions) => {
 
   return {
     ...createUserLookups({ baseUrl, authorized, transport }),
+    ...createForumLookups({ baseUrl, authorized, transport }),
     ...createMatchLookups({ baseUrl, authorized, transport }),
     ...createScoreLookups({ baseUrl, authorized, transport }),
 

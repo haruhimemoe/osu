@@ -61,6 +61,30 @@ export type BeatmapLookup = {
   unchecked: number[];
 };
 
+/** getForumTopic's options. */
+export type ForumTopicOptions = BeatmapOptions & {
+  /** Post order: oldest first ("id_asc", osu!'s default) or newest first. */
+  sort?: "id_asc" | "id_desc" | undefined;
+  /** Posts per page, 1 to 50 (osu!'s default 20). */
+  limit?: number | undefined;
+  /** The previous page's cursor, for the next page. */
+  cursor?: string | null | undefined;
+  /** A post id: the page begins at the first post at or after it. */
+  start?: number | undefined;
+};
+
+/** listForumTopics' options. */
+export type ListForumTopicsOptions = BeatmapOptions & {
+  /** Only this forum's topics (e.g. 55); every forum when left out. */
+  forumId?: number | undefined;
+  /** Newest or oldest first. */
+  sort?: "new" | "old" | undefined;
+  /** Topics per page, 1 to 50. */
+  limit?: number | undefined;
+  /** The previous page's cursor, for the next page. */
+  cursor?: string | null | undefined;
+};
+
 /** Options every method takes. getBeatmaps takes exactly these. */
 export type BeatmapOptions = {
   /**
